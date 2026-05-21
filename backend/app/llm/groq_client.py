@@ -1,0 +1,181 @@
+from __future__ import annotations
+
+import json
+import re
+import time
+from dataclasses import dataclass
+from typing import Any
+
+import requests
+
+from app.config import get_settings
+from app.llm.prompts import PROMPT_VERSION, build_news_analysis_messages
+
+
+@dataclass
+class LLMResult:
+    status: str
+    model_name: str
+    prompt_version: str
+    raw_response: str
+    data: dict[str, Any] | None = None
+    error_message: str | None = None
+
+
+KNOWN_STOCKS = {
+    "台積電": "2330",
+    "聯發科": "2454",
+    "鴻海": "2317",
+    "廣達": "2382",
+    "緯創": "3231",
+    "台達電": "2308",
+    "長榮": "2603",
+    "陽明": "2609",
+    "萬海": "2615",
+    "富邦金": "2881",
+    "國泰金": "2882",
+}
+
+POSITIVE_TERMS = ["創高", "成長", "大增", "上修", "看旺", "利多", "漲", "突破", "回升", "優於"]
+NEGATIVE_TERMS = ["下滑", "衰退", "保守", "利空", "跌", "重挫", "下修", "虧損", "不如", "疑慮"]
+MARKET_TERMS = ["台股", "加權指數", "大盤", "櫃買", "0050", "成交量"]
+INDUSTRY_TERMS = ["AI", "半導體", "記憶體", "航運", "金融股", "電動車", "伺服器", "觀光", "生技"]
+
+
+def _extract_json(text: str) -> dict[str, Any]:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(text[start : end + 1])
+        raise
+
+
+def _messages_to_prompt(messages: list[dict[str, str]]) -> str:
+    return "\n\n".join(f"{message['role']}:\n{message['content']}" for message in messages)
+
+
+def _rules_fallback(title: str, content: str) -> LLMResult:
+    text = f"{title} {content}"
+    news_type = "ignore"
+    target: str | None = None
+
+    for name, stock_id in KNOWN_STOCKS.items():
+        if name in text or re.search(rf"(?<!\d){stock_id}(?!\d)", text):
+            news_type = "stock"
+            target = stock_id
+            break
+
+    if news_type == "ignore" and any(term in text for term in MARKET_TERMS):
+        news_type = "market"
+        target = "0050"
+
+    if news_type == "ignore":
+        for term in INDUSTRY_TERMS:
+            if term in text:
+                news_type = "industry"
+                target = term
+                break
+
+    pos_hits = sum(term in text for term in POSITIVE_TERMS)
+    neg_hits = sum(term in text for term in NEGATIVE_TERMS)
+    if pos_hits > neg_hits:
+        sentiment = "positive"
+    elif neg_hits > pos_hits:
+        sentiment = "negative"
+    else:
+        sentiment = "neutral"
+
+    confidence = 0.55 if news_type != "ignore" else 0.4
+    if pos_hits != neg_hits:
+        confidence = min(0.85, confidence + 0.1 * abs(pos_hits - neg_hits))
+
+    data = {
+        "news_type": news_type,
+        "target": target,
+        "sentiment": sentiment,
+        "confidence": confidence,
+        "reason": "規則型 fallback：依公司、市場、產業與情緒關鍵字判斷，正式報告需人工複核。",
+    }
+    raw = json.dumps(data, ensure_ascii=False)
+    return LLMResult(
+        status="success",
+        model_name="rules-fallback",
+        prompt_version=PROMPT_VERSION,
+        raw_response=raw,
+        data=data,
+    )
+
+
+def _analyze_with_ollama(title: str, content: str, model: str | None = None) -> LLMResult:
+    settings = get_settings()
+    model_name = model or settings.ollama_model
+    payload = {
+        "model": model_name,
+        "prompt": _messages_to_prompt(build_news_analysis_messages(title=title, content=content)),
+        "stream": False,
+        "format": "json",
+    }
+    response = requests.post(f"{settings.ollama_base_url.rstrip('/')}/api/generate", json=payload, timeout=120)
+    response.raise_for_status()
+    body = response.json()
+    raw = body.get("response", "")
+    parsed = _extract_json(raw)
+    return LLMResult(
+        status="success",
+        model_name=model_name,
+        prompt_version=PROMPT_VERSION,
+        raw_response=raw,
+        data=parsed,
+    )
+
+
+def _analyze_with_groq(title: str, content: str, model: str | None = None) -> LLMResult:
+    settings = get_settings()
+    if not settings.groq_api_key:
+        raise RuntimeError("GROQ_API_KEY is required when llm_provider=groq")
+
+    model_name = model or settings.groq_model
+    url = f"{settings.groq_base_url.rstrip('/')}/chat/completions"
+    payload = {
+        "model": model_name,
+        "messages": build_news_analysis_messages(title=title, content=content),
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.groq_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
+    response.raise_for_status()
+    body = response.json()
+    raw = body["choices"][0]["message"]["content"]
+    parsed = _extract_json(raw)
+    return LLMResult(
+        status="success",
+        model_name=model_name,
+        prompt_version=PROMPT_VERSION,
+        raw_response=raw,
+        data=parsed,
+    )
+
+
+def analyze_news(title: str, content: str, model: str | None = None) -> LLMResult:
+    settings = get_settings()
+    last_error: str | None = None
+    for attempt in range(settings.llm_max_retries + 1):
+        try:
+            if settings.llm_provider.lower() == "groq":
+                return _analyze_with_groq(title, content, model=model)
+            return _analyze_with_ollama(title, content, model=model)
+        except Exception as exc:
+            last_error = str(exc)
+            time.sleep(min(60, 2 ** attempt * 3))
+
+    fallback = _rules_fallback(title, content)
+    fallback.error_message = f"LLM failed, used fallback: {last_error or 'Unknown LLM error'}"
+    return fallback

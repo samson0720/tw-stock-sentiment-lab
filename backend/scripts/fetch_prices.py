@@ -1,0 +1,81 @@
+from pathlib import Path
+import argparse
+import sys
+
+import pandas as pd
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from app.analysis.targets import normalize_target
+from app.db.database import connect
+from app.services.price_service import fetch_finmind_prices, fetch_yahoo_chart_prices, fetch_yfinance_prices
+
+
+def _targets_from_db() -> list[str]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT news_type, target
+            FROM llm_news_analysis
+            WHERE status = 'success'
+              AND news_type IN ('stock', 'market')
+              AND target IS NOT NULL
+            """
+        ).fetchall()
+    targets = {normalize_target(row["news_type"], row["target"]) for row in rows}
+    return sorted(t for t in targets if t)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--stock-ids", default="")
+    parser.add_argument("--start-date", default="2024-01-01")
+    parser.add_argument("--end-date", default=None)
+    parser.add_argument("--source", choices=["finmind", "yfinance"], default="finmind")
+    args = parser.parse_args()
+
+    stock_ids = [s.strip() for s in args.stock_ids.split(",") if s.strip()] or _targets_from_db()
+    total = 0
+    for stock_id in stock_ids:
+        stock_id = str(stock_id).zfill(4) if str(stock_id).isdigit() else str(stock_id)
+        try:
+            if args.source == "finmind":
+                try:
+                    df = fetch_finmind_prices(stock_id, args.start_date, args.end_date)
+                except Exception as exc:
+                    print(f"{stock_id}: FinMind failed, fallback to yfinance: {exc}")
+                    df = fetch_yfinance_prices(stock_id, args.start_date, args.end_date)
+            else:
+                df = fetch_yfinance_prices(stock_id, args.start_date, args.end_date)
+            if df.empty and args.source == "finmind":
+                df = fetch_yfinance_prices(stock_id, args.start_date, args.end_date)
+            if df.empty:
+                print(f"{stock_id}: yfinance empty, fallback to Yahoo chart API")
+                df = fetch_yahoo_chart_prices(stock_id, args.start_date, args.end_date)
+        except Exception as exc:
+            print(f"{stock_id}: failed: {exc}")
+            continue
+        if df.empty:
+            print(f"{stock_id}: no data")
+            continue
+        records = df[["stock_id", "date", "open", "high", "low", "close", "volume", "source"]].itertuples(
+            index=False, name=None
+        )
+        with connect() as conn:
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO stock_prices
+                (stock_id, date, open, high, low, close, volume, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                list(records),
+            )
+        total += len(df)
+        print(f"{stock_id}: stored {len(df)} price rows")
+    print(f"Stored total price rows: {total}")
+
+
+if __name__ == "__main__":
+    main()
