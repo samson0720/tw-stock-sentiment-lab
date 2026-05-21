@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from email.utils import parsedate_to_datetime
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,6 +12,8 @@ from bs4 import BeautifulSoup
 
 YAHOO_RSS_URL = "https://tw.stock.yahoo.com/rss"
 YAHOO_NEWS_URL = "https://tw.stock.yahoo.com/news"
+YAHOO_NEWS_SEARCH_URL = "https://tw.news.yahoo.com/search"
+YAHOO_FINANCE_STREAM_API = "https://tw-gw-news.media.yahoo.com/api/v1/gql/saved_query"
 QUOTE_NEWS_URLS = [
     "https://tw.stock.yahoo.com/quote/0050.TW/news",
     "https://tw.stock.yahoo.com/quote/2330.TW/news",
@@ -19,7 +21,23 @@ QUOTE_NEWS_URLS = [
     "https://tw.stock.yahoo.com/quote/2454.TW/news",
     "https://tw.stock.yahoo.com/quote/2303.TW/news",
 ]
-HEADERS = {"User-Agent": "Mozilla/5.0 twstock-sentiment-research/0.1"}
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 twstock-sentiment-research/0.1",
+    "Referer": "https://tw.news.yahoo.com/finance/archive/",
+}
+DEFAULT_HISTORICAL_SEARCH_TERMS = [
+    "台股",
+    "台股 0050",
+    "大盤 加權指數",
+    "ETF 0050",
+    "台積電 2330",
+    "鴻海 2317",
+    "聯發科 2454",
+    "聯電 2303",
+    "半導體 台股",
+    "AI 台股 台積電",
+]
+DEFAULT_FINANCE_API_KEYWORDS = ["2330", "0050", "2317", "2454", "2303", "TAIEX", "ETF"]
 
 
 @dataclass
@@ -45,6 +63,32 @@ def parse_rss_datetime(value: str | None) -> str | None:
         return None
 
 
+def parse_any_datetime(value: str | None) -> str | None:
+    if not value:
+        return None
+    rss_value = parse_rss_datetime(value)
+    if rss_value:
+        return rss_value
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).isoformat(timespec="seconds")
+    except ValueError:
+        return clean_text(str(value)) or None
+
+
+def parse_datetime_date(value: str | None) -> date | None:
+    parsed = parse_any_datetime(value)
+    if not parsed:
+        return None
+    try:
+        return datetime.fromisoformat(parsed.replace("Z", "+00:00")).date()
+    except ValueError:
+        match = re.search(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})", parsed)
+        if not match:
+            return None
+        year, month, day = (int(part) for part in match.groups())
+        return date(year, month, day)
+
+
 def parse_article_datetime(soup: BeautifulSoup) -> str | None:
     for attrs in (
         {"property": "article:published_time"},
@@ -57,7 +101,7 @@ def parse_article_datetime(soup: BeautifulSoup) -> str | None:
     time_tag = soup.find("time")
     if time_tag:
         value = time_tag.get("datetime") or time_tag.get_text(" ", strip=True)
-        return parse_rss_datetime(value) or clean_text(value)
+        return parse_any_datetime(value)
     return None
 
 
@@ -95,7 +139,7 @@ def fetch_article(url: str, timeout: int = 20) -> NewsItem | None:
     return NewsItem(
         title=title,
         content=content,
-        source="Yahoo Stock News",
+        source="Yahoo Stock News" if urlparse(url).netloc == "tw.stock.yahoo.com" else "Yahoo News",
         published_at=published_at,
         url=url,
         crawled_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -105,13 +149,15 @@ def fetch_article(url: str, timeout: int = 20) -> NewsItem | None:
 def normalize_news_url(href: str) -> str | None:
     url = urljoin("https://tw.stock.yahoo.com", href).split("?")[0]
     parsed = urlparse(url)
-    if parsed.netloc != "tw.stock.yahoo.com":
+    if parsed.netloc not in {"tw.stock.yahoo.com", "tw.news.yahoo.com"}:
         return None
-    if not parsed.path.startswith("/news/") or parsed.path == "/news/":
+    if parsed.netloc == "tw.stock.yahoo.com" and (
+        not parsed.path.startswith("/news/") or parsed.path == "/news/"
+    ):
         return None
     if not parsed.path.endswith(".html"):
         return None
-    return url
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
 
 def discover_page_urls(limit: int = 120) -> list[str]:
@@ -130,6 +176,174 @@ def discover_page_urls(limit: int = 120) -> list[str]:
             if len(urls) >= limit:
                 return urls
     return urls
+
+
+def discover_search_urls(terms: list[str], start_date: date, end_date: date, limit: int) -> list[str]:
+    urls: list[str] = []
+    seen: set[str] = set()
+    months = sorted({(start_date.year, start_date.month), (end_date.year, end_date.month)})
+    for year in range(start_date.year, end_date.year + 1):
+        month_start = start_date.month if year == start_date.year else 1
+        month_end = end_date.month if year == end_date.year else 12
+        for month in range(month_start, month_end + 1):
+            months.append((year, month))
+
+    month_terms = [f"{year}-{month:02d}" for year, month in sorted(set(months))]
+    queries: list[str] = []
+    for term in terms:
+        queries.append(term)
+        for month_term in month_terms:
+            queries.append(f"{term} {month_term}")
+
+    for query in queries:
+        if len(urls) >= limit:
+            break
+        search_url = f"{YAHOO_NEWS_SEARCH_URL}?p={quote_plus(query)}"
+        try:
+            response = requests.get(search_url, headers=HEADERS, timeout=20)
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+        soup = BeautifulSoup(response.text, "html.parser")
+        for link in soup.find_all("a", href=True):
+            url = normalize_news_url(str(link["href"]))
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            urls.append(url)
+            if len(urls) >= limit:
+                break
+    return urls
+
+
+def fetch_finance_stream_page(start: int = 0, count: int = 50, keyword: str | None = None) -> list[NewsItem]:
+    params = {
+        "count": str(count),
+        "device": "desktop",
+        "documentType": "article,video",
+        "id": "search",
+        "lang": "zh-Hant-TW",
+        "namespace": "news",
+        "region": "TW",
+        "site": "finance",
+        "start": str(start),
+        "version": "v1",
+        "imageSizes": "498x280,100x100",
+    }
+    if keyword:
+        params["keyword"] = keyword
+    response = requests.get(YAHOO_FINANCE_STREAM_API, headers=HEADERS, params=params, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    contents = ((data.get("data") or {}).get("stream") or {}).get("contents") or []
+    crawled_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    items: list[NewsItem] = []
+    for row in contents:
+        url_data = row.get("canonicalUrl") or {}
+        url = normalize_news_url(str(url_data.get("url") or ""))
+        title = clean_text(str(row.get("title") or ""))
+        content = clean_text(str(row.get("summary") or row.get("description") or ""))
+        published_at = parse_any_datetime(str(row.get("pubDate") or ""))
+        if not url or not title or not content or not published_at:
+            continue
+        items.append(
+            NewsItem(
+                title=title,
+                content=content,
+                source="Yahoo Finance Archive API",
+                published_at=published_at,
+                url=url,
+                crawled_at=crawled_at,
+            )
+        )
+    return items
+
+
+def fetch_finance_stream_historical(start_date: date, end_date: date, limit: int) -> list[NewsItem]:
+    items: list[NewsItem] = []
+    seen_urls: set[str] = set()
+    start_offset = 0
+    page_size = 50
+    stale_pages = 0
+
+    while len(items) < limit and stale_pages < 5 and start_offset <= 10000:
+        try:
+            page = fetch_finance_stream_page(start=start_offset, count=page_size)
+        except requests.RequestException:
+            break
+        if not page:
+            break
+
+        page_dates = [parse_datetime_date(item.published_at) for item in page]
+        page_has_target_range = False
+        for item, published_date in zip(page, page_dates):
+            if item.url in seen_urls:
+                continue
+            seen_urls.add(item.url)
+            if not published_date:
+                continue
+            if start_date <= published_date <= end_date:
+                page_has_target_range = True
+                items.append(item)
+                if len(items) >= limit:
+                    break
+
+        oldest = min((d for d in page_dates if d), default=None)
+        newest = max((d for d in page_dates if d), default=None)
+        if oldest and oldest < start_date and newest and newest < start_date:
+            stale_pages += 1
+        else:
+            stale_pages = 0
+        start_offset += page_size
+    return items
+
+
+def fetch_finance_keyword_historical(
+    start_date: date,
+    end_date: date,
+    limit: int,
+    keywords: list[str] | None = None,
+) -> list[NewsItem]:
+    items: list[NewsItem] = []
+    seen_urls: set[str] = set()
+    page_size = 50
+    terms = keywords or DEFAULT_FINANCE_API_KEYWORDS
+
+    for keyword in terms:
+        stale_pages = 0
+        for start_offset in range(0, 2050, page_size):
+            if len(items) >= limit:
+                return items
+            try:
+                page = fetch_finance_stream_page(start=start_offset, count=page_size, keyword=keyword)
+            except requests.RequestException:
+                break
+            if not page:
+                break
+
+            page_dates = [parse_datetime_date(item.published_at) for item in page]
+            page_has_target_range = False
+            for item, published_date in zip(page, page_dates):
+                if item.url in seen_urls:
+                    continue
+                seen_urls.add(item.url)
+                if not published_date:
+                    continue
+                if start_date <= published_date <= end_date:
+                    page_has_target_range = True
+                    item.source = f"Yahoo Finance Search API:{keyword}"
+                    items.append(item)
+                    if len(items) >= limit:
+                        return items
+
+            newest = max((d for d in page_dates if d), default=None)
+            if newest and newest < start_date:
+                stale_pages += 1
+                if stale_pages >= 3:
+                    break
+            elif page_has_target_range:
+                stale_pages = 0
+    return items
 
 
 def fetch_rss_news(limit: int = 100) -> list[NewsItem]:
@@ -197,4 +411,54 @@ def fetch_yahoo_news(limit: int = 100) -> list[NewsItem]:
             add(fetch_article(url))
         except requests.RequestException:
             continue
+    return items
+
+
+def fetch_yahoo_historical_news(
+    start_date: str,
+    end_date: str,
+    limit: int = 300,
+    search_terms: list[str] | None = None,
+) -> list[NewsItem]:
+    start = date.fromisoformat(start_date)
+    end = date.fromisoformat(end_date)
+    terms = search_terms or DEFAULT_HISTORICAL_SEARCH_TERMS
+    items: list[NewsItem] = []
+    seen_urls: set[str] = set()
+
+    for item in fetch_finance_keyword_historical(start, end, limit=limit):
+        if item.url in seen_urls:
+            continue
+        seen_urls.add(item.url)
+        items.append(item)
+        if len(items) >= limit:
+            return items
+
+    for item in fetch_finance_stream_historical(start, end, limit=limit - len(items)):
+        if item.url in seen_urls:
+            continue
+        seen_urls.add(item.url)
+        items.append(item)
+        if len(items) >= limit:
+            return items
+
+    candidate_urls = discover_search_urls(terms, start, end, limit=max((limit - len(items)) * 8, 500))
+    candidate_urls.extend(discover_page_urls(limit=limit * 2))
+
+    for url in candidate_urls:
+        if len(items) >= limit:
+            break
+        if url in seen_urls:
+            continue
+        seen_urls.add(url)
+        try:
+            item = fetch_article(url)
+        except requests.RequestException:
+            continue
+        if not item:
+            continue
+        published_date = parse_datetime_date(item.published_at)
+        if not published_date or published_date < start or published_date > end:
+            continue
+        items.append(item)
     return items
