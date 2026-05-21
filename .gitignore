@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+node_modules/
+.next/
+out/
+backend/data/*.db
+backend/data/*.db-*
+outputs/figures/*
+outputs/tables/*
+outputs/reports/*
+!outputs/figures/.gitkeep
+!outputs/tables/.gitkeep
+!outputs/reports/.gitkeep
