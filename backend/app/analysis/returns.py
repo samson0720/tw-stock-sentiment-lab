@@ -38,7 +38,7 @@ def build_aligned_returns() -> int:
             FROM raw_news n
             JOIN llm_news_analysis a ON a.news_id = n.id
             WHERE a.status = 'success'
-              AND a.news_type IN ('stock', 'market')
+              AND a.news_type IN ('stock', 'market', 'industry')
               AND a.target IS NOT NULL
             """
         ).fetchall()
@@ -89,6 +89,7 @@ def build_aligned_returns() -> int:
         )
 
     with connect() as conn:
+        conn.execute("DELETE FROM aligned_news_returns")
         conn.executemany(
             """
             INSERT OR REPLACE INTO aligned_news_returns

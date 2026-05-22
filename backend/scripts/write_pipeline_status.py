@@ -25,17 +25,38 @@ def _pct(numerator: int, denominator: int) -> str:
     return f"{numerator / denominator * 100:.1f}%"
 
 
+def _append_distribution(lines: list[str], title: str, rows, value_column: str = "value") -> None:
+    lines.extend(["", f"## {title}", "", "| Value | Rows |", "|---|---:|"])
+    if not rows:
+        lines.append("| None | 0 |")
+        return
+    for row in rows:
+        lines.append(f"| {row[value_column]} | {row['rows']:,} |")
+
+
 def main() -> None:
     out_path = PROJECT_ROOT / "outputs" / "reports" / "pipeline_status.md"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     with connect() as conn:
         raw_news = _count(conn, "raw_news")
+        llm_total = _count(conn, "llm_news_analysis")
         stock_prices = _count(conn, "stock_prices")
         aligned = _count(conn, "aligned_news_returns")
         daily = _count(conn, "daily_sentiment")
+        human_validation = _count(conn, "human_validation")
+        backtests = _count(conn, "backtest_results")
         success = _scalar(conn, "SELECT COUNT(*) FROM llm_news_analysis WHERE status = 'success'")
         failed = _scalar(conn, "SELECT COUNT(*) FROM llm_news_analysis WHERE status = 'failed'")
+        pending = _scalar(
+            conn,
+            """
+            SELECT COUNT(*)
+            FROM raw_news n
+            LEFT JOIN llm_news_analysis a ON a.news_id = n.id
+            WHERE a.news_id IS NULL
+            """,
+        )
         historical_valid = _scalar(
             conn,
             """
@@ -58,6 +79,32 @@ def main() -> None:
                 conn, "SELECT COUNT(*) FROM aligned_news_returns WHERE future_return_5d IS NOT NULL"
             ),
         }
+        news_type_dist = conn.execute(
+            """
+            SELECT COALESCE(news_type, 'NULL') AS value, COUNT(*) AS rows
+            FROM llm_news_analysis
+            GROUP BY news_type
+            ORDER BY rows DESC, value
+            """
+        ).fetchall()
+        sentiment_dist = conn.execute(
+            """
+            SELECT COALESCE(sentiment, 'NULL') AS value, COUNT(*) AS rows
+            FROM llm_news_analysis
+            GROUP BY sentiment
+            ORDER BY rows DESC, value
+            """
+        ).fetchall()
+        target_dist = conn.execute(
+            """
+            SELECT news_type || ' / ' || COALESCE(target, 'NULL') AS value, COUNT(*) AS rows
+            FROM llm_news_analysis
+            WHERE status = 'success'
+            GROUP BY news_type, target
+            ORDER BY rows DESC, value
+            LIMIT 40
+            """
+        ).fetchall()
         price_ranges = conn.execute(
             """
             SELECT stock_id, MIN(date) AS start_date, MAX(date) AS end_date, COUNT(*) AS rows
@@ -95,23 +142,35 @@ def main() -> None:
         "| Table | Rows |",
         "|---|---:|",
         f"| raw_news | {raw_news:,} |",
+        f"| llm_news_analysis total | {llm_total:,} |",
         f"| llm_news_analysis success | {success:,} |",
         f"| llm_news_analysis failed | {failed:,} |",
+        f"| llm_news_analysis pending | {pending:,} |",
         f"| stock_prices | {stock_prices:,} |",
         f"| aligned_news_returns | {aligned:,} |",
         f"| daily_sentiment | {daily:,} |",
+        f"| human_validation | {human_validation:,} |",
+        f"| backtest_results | {backtests:,} |",
         "",
         "## Historical News Target",
         "",
         "| Requirement | Current | Status |",
         "|---|---:|---|",
         f"| Valid news from 2026-03-01 to 2026-05-08 | {historical_valid:,} | {'OK' if enough_news else 'Needs more data'} |",
-        "",
-        "## Future Return Coverage",
-        "",
-        "| Field | Non-null Rows | Non-null Ratio |",
-        "|---|---:|---:|",
     ]
+    _append_distribution(lines, "LLM News Type Distribution", news_type_dist)
+    _append_distribution(lines, "LLM Sentiment Distribution", sentiment_dist)
+    _append_distribution(lines, "LLM Target Distribution Top 40", target_dist)
+
+    lines.extend(
+        [
+            "",
+            "## Future Return Coverage",
+            "",
+            "| Field | Non-null Rows | Non-null Ratio |",
+            "|---|---:|---:|",
+        ]
+    )
     for field, count in null_stats.items():
         lines.append(f"| {field} | {count:,} | {_pct(count, aligned)} |")
 

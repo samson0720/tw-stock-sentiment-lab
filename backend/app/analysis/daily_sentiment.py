@@ -58,6 +58,7 @@ def build_daily_sentiment() -> int:
         ]
     ].itertuples(index=False, name=None)
     with connect() as conn:
+        conn.execute("DELETE FROM daily_sentiment")
         conn.executemany(
             """
             INSERT OR REPLACE INTO daily_sentiment

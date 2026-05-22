@@ -13,6 +13,9 @@ from app.db.database import connect
 from app.services.price_service import fetch_finmind_prices, fetch_yahoo_chart_prices, fetch_yfinance_prices
 
 
+REQUIRED_STOCK_IDS = {"0050", "2330", "2317", "2454", "2303", "3481"}
+
+
 def _targets_from_db() -> list[str]:
     with connect() as conn:
         rows = conn.execute(
@@ -25,7 +28,8 @@ def _targets_from_db() -> list[str]:
             """
         ).fetchall()
     targets = {normalize_target(row["news_type"], row["target"]) for row in rows}
-    return sorted(t for t in targets if t)
+    stock_ids = {t for t in targets if t and str(t).isdigit() and len(str(t)) == 4}
+    return sorted(REQUIRED_STOCK_IDS | stock_ids)
 
 
 def main() -> None:
@@ -36,7 +40,11 @@ def main() -> None:
     parser.add_argument("--source", choices=["finmind", "yfinance"], default="finmind")
     args = parser.parse_args()
 
-    stock_ids = [s.strip() for s in args.stock_ids.split(",") if s.strip()] or _targets_from_db()
+    stock_ids = [s.strip() for s in args.stock_ids.split(",") if s.strip()]
+    if stock_ids:
+        stock_ids = sorted(set(stock_ids) | REQUIRED_STOCK_IDS)
+    else:
+        stock_ids = _targets_from_db()
     total = 0
     for stock_id in stock_ids:
         stock_id = str(stock_id).zfill(4) if str(stock_id).isdigit() else str(stock_id)
