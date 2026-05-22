@@ -1,118 +1,163 @@
 # Pipeline Status
 
-Generated at: 2026-05-18
+Generated at: 2026-05-22
 
 ## Summary
 
-100-news offline pipeline test completed. FastAPI and frontend do not call Groq; LLM analysis is still handled only by `backend/scripts/analyze_news_with_llm.py`.
+Historical data refresh focused on making future returns non-null for downstream notebooks and backtests.
+FastAPI and frontend do not call Groq; LLM analysis remains limited to `backend/scripts/analyze_news_with_llm.py`.
 
 ## Table Counts
 
 | Table | Rows |
 |---|---:|
-| raw_news | 150 |
-| llm_news_analysis | 100 |
-| stock_prices | 1,641 |
-| aligned_news_returns | 49 |
-| daily_sentiment | 2 |
+| raw_news | 570 |
+| llm_news_analysis total | 426 |
+| llm_news_analysis success | 426 |
+| llm_news_analysis failed | 0 |
+| llm_news_analysis pending | 144 |
+| stock_prices | 2,687 |
+| aligned_news_returns | 304 |
+| daily_sentiment | 46 |
+| human_validation | 0 |
 | backtest_results | 0 |
 
-## Raw News Quality
+## Historical News Target
 
-| Check | Count |
+| Requirement | Current | Status |
+|---|---:|---|
+| Valid news from 2026-03-01 to 2026-05-08 | 437 | OK |
+
+## LLM News Type Distribution
+
+| Value | Rows |
 |---|---:|
-| Empty title | 0 |
-| Empty content | 0 |
-| Empty published_at | 0 |
-| Duplicate URL groups | 0 |
-| Duplicate title groups | 0 |
+| market | 201 |
+| industry | 136 |
+| stock | 88 |
+| ignore | 1 |
 
-Yahoo crawler now combines RSS, the main Yahoo stock news page, and quote news pages for 0050, 2330, 2317, 2454, and 2303.
+## LLM Sentiment Distribution
 
-## LLM Analysis
-
-| Metric | Count |
+| Value | Rows |
 |---|---:|
-| Total analyzed | 100 |
-| Success | 100 |
-| Failed | 0 |
-| JSON parse failed | 0 |
-| Success rate | 100.0% |
+| neutral | 171 |
+| positive | 166 |
+| negative | 89 |
 
-### News Type Distribution
+## LLM Target Distribution Top 40
 
-| news_type | Count |
+| Value | Rows |
 |---|---:|
-| industry | 41 |
-| market | 35 |
-| stock | 24 |
+| market / 0050 | 62 |
+| market / TAIEX/0050 | 58 |
+| market / TAIEX | 53 |
+| stock / 2330 | 43 |
+| industry / NULL | 14 |
+| industry / 台積電 | 10 |
+| industry / TSMC Global Ltd. | 8 |
+| industry / 半導體 | 7 |
+| stock / 2454 | 6 |
+| industry / AI | 5 |
+| industry / ETF | 5 |
+| market / 2330 | 5 |
+| stock / 2303 | 5 |
+| industry / 半導體產業 | 4 |
+| industry / 記憶體 | 3 |
+| stock / 00403A | 3 |
+| industry / 00981A | 2 |
+| industry / 2330.TW | 2 |
+| industry / Arm | 2 |
+| industry / TSMC | 2 |
+| industry / semiconductor | 2 |
+| industry / semiconductor industry | 2 |
+| industry / 台積電(2330) | 2 |
+| market / TAIEX/40769.29 | 2 |
+| market / TAIEX/41138.85 | 2 |
+| market / 台積電 | 2 |
+| market / 黃金 | 2 |
+| stock / 00878 | 2 |
+| stock / 2330-TW | 2 |
+| ignore / NULL | 1 |
+| industry / 00991A | 1 |
+| industry / 2303.TW | 1 |
+| industry / 2330 | 1 |
+| industry / 2330-TW | 1 |
+| industry / 2731 | 1 |
+| industry / 3498.TWO | 1 |
+| industry / 5269 | 1 |
+| industry / 7744 | 1 |
+| industry / ABF載板 | 1 |
+| industry / AI晶片競爭 | 1 |
 
-### Sentiment Distribution
+## Future Return Coverage
 
-| sentiment | Count |
-|---|---:|
-| neutral | 45 |
-| negative | 32 |
-| positive | 23 |
-
-### Failed Cases
-
-No LLM failed cases in this run.
-
-## Validation Export
-
-Manual validation sample exported:
-
-```text
-outputs/tables/validation_sample.csv
-```
-
-Rows exported: 100
+| Field | Non-null Rows | Non-null Ratio |
+|---|---:|---:|
+| future_return_1d | 304 | 100.0% |
+| future_return_3d | 304 | 100.0% |
+| future_return_5d | 231 | 76.0% |
 
 ## Price Data
 
-FinMind failed in this Windows/Python environment with `asyncio.unix_events`. yfinance also returned empty data because Yahoo Finance cookie/timezone lookup failed. The script fell back to the direct Yahoo Finance chart API and stored usable daily prices.
-
-| stock_id | Source | Start Date | End Date | Rows |
-|---|---|---:|---:|---:|
-| 0050 | YahooChart | 2025-01-02 | 2026-05-18 | 329 |
-| 2303 | YahooChart | 2025-01-02 | 2026-05-18 | 328 |
-| 2317 | YahooChart | 2025-01-02 | 2026-05-18 | 328 |
-| 2330 | YahooChart | 2025-01-02 | 2026-05-18 | 328 |
-| 2454 | YahooChart | 2025-01-02 | 2026-05-18 | 328 |
-
-## Alignment Results
-
-| Target | Aligned News Rows |
-|---|---:|
-| 0050 | 33 |
-| 2330 | 16 |
-
-Total `aligned_news_returns` rows: 49
-
-Current future return null counts:
-
-| Field | Null Count |
-|---|---:|
-| future_return_1d | 49 |
-| future_return_3d | 49 |
-| future_return_5d | 49 |
-
-Reason: the analyzed Yahoo news sample is concentrated on 2026-05-18, which is the latest available trading date in the downloaded price data. There is no next trading day yet, so future return fields are correctly left null instead of fabricating future prices.
+| stock_id | Start Date | End Date | Rows |
+|---|---:|---:|---:|
+| 0050 | 2025-01-02 | 2026-05-22 | 333 |
+| 2059 | 2026-03-02 | 2026-05-22 | 57 |
+| 2303 | 2025-01-02 | 2026-05-22 | 332 |
+| 2317 | 2025-01-02 | 2026-05-22 | 332 |
+| 2327 | 2026-03-02 | 2026-05-22 | 57 |
+| 2330 | 2025-01-02 | 2026-05-22 | 332 |
+| 2347 | 2026-03-02 | 2026-05-22 | 57 |
+| 2382 | 2026-03-02 | 2026-05-22 | 57 |
+| 2408 | 2026-03-02 | 2026-05-22 | 57 |
+| 2454 | 2025-01-02 | 2026-05-22 | 332 |
+| 2504 | 2026-03-02 | 2026-05-22 | 57 |
+| 2547 | 2026-03-02 | 2026-05-22 | 57 |
+| 2609 | 2026-03-02 | 2026-05-22 | 57 |
+| 2731 | 2026-03-02 | 2026-05-22 | 57 |
+| 3037 | 2026-03-02 | 2026-05-22 | 57 |
+| 3060 | 2026-03-02 | 2026-05-22 | 57 |
+| 3481 | 2026-03-02 | 2026-05-22 | 57 |
+| 3711 | 2026-03-02 | 2026-05-22 | 57 |
+| 5269 | 2026-03-02 | 2026-05-22 | 57 |
+| 6184 | 2026-03-02 | 2026-05-22 | 57 |
+| 6451 | 2026-03-02 | 2026-05-22 | 57 |
+| 7769 | 2026-03-02 | 2026-05-22 | 57 |
+| 8261 | 2026-03-02 | 2026-05-22 | 57 |
 
 ## Daily Sentiment
 
 | Target | Start Date | End Date | Rows | News Count |
 |---|---:|---:|---:|---:|
-| 0050 | 2026-05-18 | 2026-05-18 | 1 | 33 |
-| 2330 | 2026-05-18 | 2026-05-18 | 1 | 16 |
+| 0050 | 2026-04-29 | 2026-05-18 | 11 | 181 |
+| 2059 | 2026-05-07 | 2026-05-07 | 1 | 1 |
+| 2303 | 2026-04-30 | 2026-05-08 | 5 | 9 |
+| 2327 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 2330 | 2026-04-29 | 2026-05-18 | 8 | 88 |
+| 2347 | 2026-05-05 | 2026-05-05 | 1 | 1 |
+| 2382 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 2408 | 2026-05-06 | 2026-05-06 | 1 | 1 |
+| 2454 | 2026-05-04 | 2026-05-08 | 5 | 9 |
+| 2504 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 2547 | 2026-04-29 | 2026-04-29 | 1 | 1 |
+| 2609 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 2731 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 3037 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 3060 | 2026-05-07 | 2026-05-07 | 1 | 1 |
+| 3711 | 2026-04-30 | 2026-04-30 | 1 | 1 |
+| 5269 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 6184 | 2026-05-07 | 2026-05-07 | 1 | 1 |
+| 6451 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 7769 | 2026-05-18 | 2026-05-18 | 1 | 1 |
+| 8261 | 2026-05-18 | 2026-05-18 | 1 | 1 |
 
-Total `daily_sentiment` rows: 2
+## Notebook Readiness
+
+Ready for notebook analysis: yes
+
+Criteria used here: at least 300 valid historical news rows in the target window and at least 100 rows with non-null 5-day future returns.
 
 ## Next Steps
 
-1. Collect older news samples so `future_return_1d`, `future_return_3d`, and `future_return_5d` can be populated without look-ahead bias.
-2. Ask teammates to fill `outputs/tables/validation_sample.csv` for manual LLM validation.
-3. Expand target normalization for common company names and ETF tickers found in the first 100-news run.
-4. After older aligned samples exist, run statistical notebooks and then backtest.
-5. Keep dashboard work paused until the analysis tables contain enough non-null return observations.
+1. Run statistical notebooks and inspect whether signal strength is meaningful before backtesting.
