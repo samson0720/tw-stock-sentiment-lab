@@ -1,7 +1,7 @@
 import "./styles.css";
 
 export const metadata = {
-  title: "台股新聞情緒分析",
+  title: "TW Stock Sentiment Lab",
   description: "Local TW stock news sentiment research dashboard"
 };
 

@@ -11,6 +11,7 @@ export async function apiGet<T>(path: string): Promise<T> {
 export type Summary = {
   news_count: number;
   analyzed_count: number;
+  failed_count: number;
   by_sentiment: { sentiment: string; count: number }[];
   by_type: { news_type: string; count: number }[];
 };
@@ -23,6 +24,7 @@ export type NewsRow = {
   news_type: string | null;
   target: string | null;
   sentiment: string | null;
+  sentiment_score: number | null;
   confidence: number | null;
   reason: string | null;
 };
@@ -51,8 +53,16 @@ export type ReturnRow = {
 export type BacktestRow = {
   id: number;
   strategy_name: string;
+  config: string;
   start_date: string | null;
   end_date: string | null;
   metrics: string;
   created_at: string;
+};
+
+export type StockRow = {
+  stock_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  rows: number;
 };
