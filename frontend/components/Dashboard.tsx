@@ -222,6 +222,15 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks }: 
 
   const analyzedRatio = summary.news_count ? summary.analyzed_count / summary.news_count : 0;
   const failedRatio = summary.analyzed_count ? summary.failed_count / summary.analyzed_count : 0;
+  const tapeItems = [
+    `RAW NEWS ${fmtNumber(summary.news_count)}`,
+    `LLM ${fmtNumber(summary.analyzed_count)} ANALYZED`,
+    `1D COVERAGE ${fmtPct(nonNullRatio(returns, "future_return_1d"))}`,
+    `3D COVERAGE ${fmtPct(nonNullRatio(returns, "future_return_3d"))}`,
+    `5D COVERAGE ${fmtPct(nonNullRatio(returns, "future_return_5d"))}`,
+    `BACKTEST ${fmtPct(latestMetrics?.strategy?.total_return, 2)}`,
+    `BENCHMARK ${fmtPct(latestMetrics?.benchmark?.total_return, 2)}`
+  ];
 
   return (
     <main className="dashboard-shell">
@@ -245,6 +254,14 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks }: 
           </span>
         </div>
       </header>
+
+      <section className="market-tape" aria-label="pipeline tape">
+        <div>
+          {[...tapeItems, ...tapeItems].map((item, index) => (
+            <span key={`${item}-${index}`}>{item}</span>
+          ))}
+        </div>
+      </section>
 
       <section className="metric-grid" aria-label="data overview">
         <article className="metric-card">

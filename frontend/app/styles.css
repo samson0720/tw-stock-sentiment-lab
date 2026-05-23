@@ -1,19 +1,19 @@
 :root {
-  color-scheme: light;
-  --paper: #f4f1ea;
-  --paper-2: #ebe7dd;
-  --ink: #17202a;
-  --muted: #68727f;
-  --panel: #fffdf7;
-  --panel-strong: #f8f4ea;
-  --line: #d8d1c1;
-  --line-strong: #b9af9b;
-  --blue: #2f6f9f;
-  --green: #12845c;
-  --red: #c74737;
-  --amber: #c98a22;
-  --violet: #8665d8;
-  --shadow: 0 18px 45px rgba(31, 36, 42, 0.08);
+  color-scheme: dark;
+  --paper: #090d12;
+  --paper-2: #111922;
+  --ink: #f3f8ff;
+  --muted: #93a6b8;
+  --panel: rgba(13, 19, 27, 0.88);
+  --panel-strong: rgba(19, 29, 40, 0.94);
+  --line: rgba(112, 139, 163, 0.28);
+  --line-strong: rgba(141, 170, 194, 0.55);
+  --blue: #40c5ff;
+  --green: #39e29b;
+  --red: #ff6557;
+  --amber: #ffd166;
+  --violet: #b28cff;
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.36);
 }
 
 * {
@@ -27,12 +27,42 @@ html {
 body {
   margin: 0;
   background:
-    linear-gradient(90deg, rgba(23, 32, 42, 0.035) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(23, 32, 42, 0.025) 1px, transparent 1px),
+    linear-gradient(120deg, rgba(64, 197, 255, 0.12), transparent 28%, rgba(255, 209, 102, 0.1) 56%, transparent),
+    linear-gradient(90deg, rgba(64, 197, 255, 0.11) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(178, 140, 255, 0.09) 1px, transparent 1px),
     var(--paper);
-  background-size: 28px 28px;
+  background-size: 180% 180%, 28px 28px, 28px 28px;
   color: var(--ink);
   font-family: "Aptos", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  animation: gridDrift 18s linear infinite;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+body::before {
+  background:
+    linear-gradient(90deg, transparent 0, rgba(57, 226, 155, 0.08) 50%, transparent 100%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 7px);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  transform: translateX(-100%);
+  animation: scanSweep 7s ease-in-out infinite;
+}
+
+body::after {
+  background-image:
+    linear-gradient(135deg, rgba(255, 101, 87, 0.08) 0 1px, transparent 1px 20px),
+    linear-gradient(45deg, rgba(255, 209, 102, 0.07) 0 1px, transparent 1px 22px);
+  background-size: 42px 42px, 54px 54px;
+  opacity: 0.36;
+  animation: circuitDrift 26s linear infinite;
 }
 
 button,
@@ -46,6 +76,7 @@ textarea {
   width: min(1480px, calc(100% - 32px));
   margin: 0 auto;
   padding: 28px 0 44px;
+  animation: shellIn 700ms ease-out both;
 }
 
 .masthead {
@@ -56,6 +87,19 @@ textarea {
   padding: 24px 0 22px;
   border-bottom: 2px solid var(--ink);
   margin-bottom: 18px;
+  position: relative;
+}
+
+.masthead::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue), var(--green), var(--amber), var(--red), var(--blue));
+  background-size: 240% 100%;
+  animation: shimmerLine 4s linear infinite;
 }
 
 .eyebrow,
@@ -72,6 +116,7 @@ textarea {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 8px;
+  text-shadow: 0 0 18px rgba(64, 197, 255, 0.65);
 }
 
 h1,
@@ -82,10 +127,11 @@ p {
 
 h1 {
   font-family: Georgia, "Noto Serif TC", serif;
-  font-size: clamp(34px, 5vw, 62px);
+  font-size: 62px;
   line-height: 0.98;
   letter-spacing: 0;
   max-width: 860px;
+  text-shadow: 0 0 22px rgba(64, 197, 255, 0.24), 0 0 42px rgba(178, 140, 255, 0.18);
 }
 
 h2 {
@@ -117,14 +163,84 @@ h2 {
   font-weight: 700;
   padding: 8px 11px;
   white-space: nowrap;
+  box-shadow: inset 0 0 18px rgba(64, 197, 255, 0.08);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.status-pill:hover {
+  border-color: var(--blue);
+  box-shadow: 0 0 22px rgba(64, 197, 255, 0.18), inset 0 0 20px rgba(64, 197, 255, 0.12);
+  transform: translateY(-2px);
 }
 
 .status-pill.good svg {
   color: var(--green);
+  filter: drop-shadow(0 0 8px rgba(57, 226, 155, 0.8));
 }
 
 .status-pill.warn svg {
   color: var(--amber);
+  filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.8));
+}
+
+.market-tape {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: linear-gradient(90deg, rgba(64, 197, 255, 0.14), rgba(57, 226, 155, 0.06), rgba(255, 209, 102, 0.12));
+  box-shadow: 0 0 34px rgba(64, 197, 255, 0.12), inset 0 0 28px rgba(0, 0, 0, 0.22);
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.market-tape::before,
+.market-tape::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.market-tape::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--paper), transparent);
+}
+
+.market-tape::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--paper), transparent);
+}
+
+.market-tape div {
+  display: flex;
+  width: max-content;
+  animation: tickerMove 32s linear infinite;
+}
+
+.market-tape span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 26px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.market-tape span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 14px var(--green);
+  margin-right: 12px;
 }
 
 .metric-grid,
@@ -140,9 +256,33 @@ h2 {
 
 .metric-card,
 .panel {
-  background: rgba(255, 253, 247, 0.93);
+  background: var(--panel);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  position: relative;
+  overflow: hidden;
+  transform: translateY(18px);
+  animation: panelRise 720ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.metric-card::before,
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0%, rgba(64, 197, 255, 0.13) 38%, rgba(255, 209, 102, 0.1) 48%, transparent 58%);
+  transform: translateX(-130%);
+  animation: cardSweep 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.metric-card:hover,
+.panel:hover {
+  border-color: rgba(64, 197, 255, 0.7);
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.5), 0 0 34px rgba(64, 197, 255, 0.15);
+  transform: translateY(-4px);
 }
 
 .metric-card {
@@ -152,8 +292,6 @@ h2 {
   padding: 16px;
   display: grid;
   align-content: space-between;
-  position: relative;
-  overflow: hidden;
 }
 
 .metric-card::after {
@@ -162,7 +300,9 @@ h2 {
   inset: auto 14px 12px auto;
   width: 46px;
   height: 3px;
-  background: var(--line-strong);
+  background: linear-gradient(90deg, var(--blue), var(--green), var(--amber));
+  box-shadow: 0 0 16px rgba(64, 197, 255, 0.45);
+  animation: pulseLine 2.7s ease-in-out infinite;
 }
 
 .metric-icon {
@@ -173,6 +313,8 @@ h2 {
   align-items: center;
   justify-content: center;
   color: #fff;
+  box-shadow: 0 0 24px rgba(64, 197, 255, 0.26);
+  animation: iconFloat 3.4s ease-in-out infinite;
 }
 
 .metric-icon.blue {
@@ -212,8 +354,9 @@ h2 {
 .metric-card strong {
   display: block;
   margin-top: 4px;
-  font-size: clamp(28px, 4vw, 42px);
+  font-size: 42px;
   line-height: 1;
+  text-shadow: 0 0 18px rgba(243, 248, 255, 0.16);
 }
 
 .metric-card small {
@@ -231,6 +374,30 @@ h2 {
   border-radius: 7px;
   padding: 16px;
   min-width: 0;
+}
+
+.metric-card:nth-child(1) {
+  animation-delay: 40ms;
+}
+
+.metric-card:nth-child(2) {
+  animation-delay: 110ms;
+}
+
+.metric-card:nth-child(3) {
+  animation-delay: 180ms;
+}
+
+.metric-card:nth-child(4) {
+  animation-delay: 250ms;
+}
+
+.panel:nth-child(1) {
+  animation-delay: 130ms;
+}
+
+.panel:nth-child(2) {
+  animation-delay: 220ms;
 }
 
 .span-5 {
@@ -292,13 +459,16 @@ h2 {
   min-height: 32px;
   padding: 0 11px;
   cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .target-tabs button:hover,
 .target-tabs button.active {
   border-color: var(--ink);
-  background: var(--ink);
-  color: var(--panel);
+  background: linear-gradient(135deg, var(--blue), var(--violet));
+  color: #fff;
+  box-shadow: 0 0 22px rgba(64, 197, 255, 0.28);
+  transform: translateY(-2px);
 }
 
 .distribution-list {
@@ -334,9 +504,19 @@ h2 {
 
 .track {
   height: 10px;
-  background: #e8e2d6;
+  background: rgba(147, 166, 184, 0.16);
   border-radius: 999px;
   overflow: hidden;
+  position: relative;
+}
+
+.track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-100%);
+  animation: trackShine 3.5s ease-in-out infinite;
 }
 
 .track span {
@@ -363,6 +543,17 @@ h2 {
   background: var(--panel-strong);
   border-radius: 7px;
   padding: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.coverage-grid div:hover,
+.backtest-block div:hover,
+.stock-chip:hover {
+  border-color: var(--green);
+  box-shadow: 0 0 26px rgba(57, 226, 155, 0.16);
+  transform: translateY(-3px);
 }
 
 .coverage-grid span,
@@ -404,6 +595,7 @@ h2 {
   background: var(--panel-strong);
   padding: 10px;
   min-height: 88px;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .stock-chip strong {
@@ -419,6 +611,7 @@ h2 {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 7px;
+  box-shadow: inset 0 0 30px rgba(64, 197, 255, 0.04);
 }
 
 table {
@@ -442,8 +635,8 @@ td {
 }
 
 th {
-  background: #f0eadf;
-  color: #4b5563;
+  background: rgba(64, 197, 255, 0.1);
+  color: #bed2e5;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -452,7 +645,8 @@ th {
 }
 
 tbody tr:hover {
-  background: rgba(47, 111, 159, 0.06);
+  background: rgba(64, 197, 255, 0.11);
+  box-shadow: inset 3px 0 0 var(--blue);
 }
 
 tbody tr:last-child td {
@@ -491,8 +685,9 @@ tbody tr:last-child td {
 }
 
 .tag {
-  background: #e8e2d6;
-  color: var(--ink);
+  background: rgba(64, 197, 255, 0.12);
+  color: #cdefff;
+  box-shadow: inset 0 0 14px rgba(64, 197, 255, 0.1);
 }
 
 .sentiment.positive {
@@ -515,6 +710,147 @@ tbody tr:last-child td {
   border: 1px solid var(--line) !important;
   border-radius: 7px !important;
   box-shadow: var(--shadow) !important;
+  background: rgba(10, 15, 22, 0.94) !important;
+  color: var(--ink) !important;
+}
+
+.recharts-surface {
+  filter: drop-shadow(0 0 12px rgba(64, 197, 255, 0.08));
+  animation: chartReveal 900ms ease-out both;
+}
+
+@keyframes gridDrift {
+  0% {
+    background-position: 0% 50%, 0 0, 0 0;
+  }
+  100% {
+    background-position: 100% 50%, 56px 28px, -28px 56px;
+  }
+}
+
+@keyframes circuitDrift {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: 84px 42px, -108px 54px;
+  }
+}
+
+@keyframes scanSweep {
+  0%,
+  55% {
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+  65% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateX(110%);
+    opacity: 0;
+  }
+}
+
+@keyframes shellIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmerLine {
+  to {
+    background-position: 240% 0;
+  }
+}
+
+@keyframes tickerMove {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes panelRise {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cardSweep {
+  0%,
+  62% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes pulseLine {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scaleX(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes iconFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes trackShine {
+  0%,
+  35% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes chartReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -548,6 +884,10 @@ tbody tr:last-child td {
     align-items: start;
   }
 
+  h1 {
+    font-size: 38px;
+  }
+
   .status-stack {
     justify-content: flex-start;
   }
@@ -564,5 +904,9 @@ tbody tr:last-child td {
   .chart-short,
   .chart-wide {
     height: 280px;
+  }
+
+  .market-tape span {
+    padding: 0 18px;
   }
 }
