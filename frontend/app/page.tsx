@@ -1,14 +1,15 @@
 import { Dashboard } from "@/components/Dashboard";
-import { apiGet, BacktestRow, DailySentiment, NewsRow, ReturnRow, StockRow, Summary } from "@/lib/api";
+import { apiGet, BacktestRow, DailyBrief, DailySentiment, NewsRow, ReturnRow, StockRow, Summary } from "@/lib/api";
 
 export default async function Home() {
-  const [summary, news, daily, returns, backtests, stocks] = await Promise.all([
+  const [summary, news, daily, returns, backtests, stocks, dailyBrief] = await Promise.all([
     apiGet<Summary>("/api/sentiment/summary"),
     apiGet<NewsRow[]>("/api/news?limit=100"),
     apiGet<DailySentiment[]>("/api/sentiment/daily?limit=500"),
     apiGet<ReturnRow[]>("/api/analysis/returns?limit=500"),
     apiGet<BacktestRow[]>("/api/backtest/results"),
-    apiGet<StockRow[]>("/api/stocks")
+    apiGet<StockRow[]>("/api/stocks"),
+    apiGet<DailyBrief>("/api/daily-brief/latest").catch(() => null)
   ]);
 
   return (
@@ -19,6 +20,7 @@ export default async function Home() {
       returns={returns}
       backtests={backtests}
       stocks={stocks}
+      dailyBrief={dailyBrief}
     />
   );
 }

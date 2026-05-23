@@ -66,3 +66,37 @@ export type StockRow = {
   end_date: string | null;
   rows: number;
 };
+
+export type DailyBriefTarget = {
+  target: string;
+  sentiment_score: number | null;
+  sentiment_ma5: number | null;
+  news_count: number;
+  positive_ratio?: number | null;
+  negative_ratio?: number | null;
+};
+
+export type DailyBriefRiskFlag = {
+  target: string;
+  flag: string;
+  reason: string;
+  sentiment_score?: number | null;
+  negative_ratio?: number | null;
+  news_count?: number;
+  confidence?: number | null;
+  example_title?: string;
+};
+
+export type DailyBrief = {
+  id: number;
+  brief_date: string;
+  market_sentiment_score: number | null;
+  market_label: string;
+  top_positive_targets: DailyBriefTarget[];
+  top_negative_targets: DailyBriefTarget[];
+  risk_flags: DailyBriefRiskFlag[];
+  summary_text: string;
+  created_at: string;
+  news_count: number;
+  analyzed_count: number;
+};

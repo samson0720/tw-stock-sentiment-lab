@@ -1,3 +1,5 @@
+import json
+
 from app.db.database import fetch_all, fetch_one
 
 
@@ -70,3 +72,62 @@ def backtest_results() -> list[dict]:
         ORDER BY created_at DESC
         """
     )
+
+
+def _parse_daily_brief(row: dict) -> dict:
+    brief_date = row["brief_date"]
+    news_count = fetch_one(
+        """
+        SELECT COUNT(*) AS count
+        FROM raw_news
+        WHERE substr(COALESCE(published_at, crawled_at), 1, 10) = ?
+        """,
+        (brief_date,),
+    )
+    analyzed_count = fetch_one(
+        """
+        SELECT COUNT(*) AS count
+        FROM raw_news n
+        JOIN llm_news_analysis a ON a.news_id = n.id
+        WHERE a.status = 'success'
+          AND substr(COALESCE(n.published_at, n.crawled_at), 1, 10) = ?
+        """,
+        (brief_date,),
+    )
+    return {
+        **row,
+        "top_positive_targets": json.loads(row["top_positive_targets"] or "[]"),
+        "top_negative_targets": json.loads(row["top_negative_targets"] or "[]"),
+        "risk_flags": json.loads(row["risk_flags"] or "[]"),
+        "news_count": int(news_count["count"] if news_count else 0),
+        "analyzed_count": int(analyzed_count["count"] if analyzed_count else 0),
+    }
+
+
+def latest_daily_brief() -> dict | None:
+    row = fetch_one(
+        """
+        SELECT id, brief_date, market_sentiment_score, market_label,
+               top_positive_targets, top_negative_targets, risk_flags,
+               summary_text, created_at
+        FROM daily_brief
+        ORDER BY brief_date DESC, created_at DESC
+        LIMIT 1
+        """
+    )
+    return _parse_daily_brief(row) if row else None
+
+
+def daily_brief_history(limit: int = 30) -> list[dict]:
+    rows = fetch_all(
+        """
+        SELECT id, brief_date, market_sentiment_score, market_label,
+               top_positive_targets, top_negative_targets, risk_flags,
+               summary_text, created_at
+        FROM daily_brief
+        ORDER BY brief_date DESC, created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+    return [_parse_daily_brief(row) for row in rows]

@@ -78,6 +78,18 @@ CREATE TABLE IF NOT EXISTS backtest_results (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS daily_brief (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brief_date TEXT NOT NULL UNIQUE,
+    market_sentiment_score REAL,
+    market_label TEXT NOT NULL,
+    top_positive_targets TEXT NOT NULL DEFAULT '[]',
+    top_negative_targets TEXT NOT NULL DEFAULT '[]',
+    risk_flags TEXT NOT NULL DEFAULT '[]',
+    summary_text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS human_validation (
     news_id INTEGER PRIMARY KEY,
     human_news_type TEXT,
@@ -97,3 +109,4 @@ CREATE INDEX IF NOT EXISTS idx_llm_news_type ON llm_news_analysis(news_type);
 CREATE INDEX IF NOT EXISTS idx_stock_prices_stock_date ON stock_prices(stock_id, date);
 CREATE INDEX IF NOT EXISTS idx_aligned_target_date ON aligned_news_returns(target, trading_date);
 CREATE INDEX IF NOT EXISTS idx_daily_sentiment_target_date ON daily_sentiment(target, trading_date);
+CREATE INDEX IF NOT EXISTS idx_daily_brief_date ON daily_brief(brief_date);

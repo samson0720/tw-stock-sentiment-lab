@@ -3,7 +3,9 @@ from fastapi import APIRouter, HTTPException, Query
 from app.services.news_service import get_news, list_news
 from app.services.summary_service import (
     backtest_results,
+    daily_brief_history,
     daily_sentiment,
+    latest_daily_brief,
     returns_analysis,
     sentiment_summary,
     stock_prices,
@@ -63,3 +65,16 @@ def returns_endpoint(limit: int = Query(500, ge=1, le=5000)) -> list[dict]:
 @router.get("/backtest/results")
 def backtest_endpoint() -> list[dict]:
     return backtest_results()
+
+
+@router.get("/daily-brief/latest")
+def latest_daily_brief_endpoint() -> dict:
+    row = latest_daily_brief()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Daily brief not found")
+    return row
+
+
+@router.get("/daily-brief/history")
+def daily_brief_history_endpoint(limit: int = Query(30, ge=1, le=365)) -> list[dict]:
+    return daily_brief_history(limit=limit)

@@ -28,7 +28,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { BacktestRow, DailySentiment, NewsRow, ReturnRow, StockRow, Summary } from "@/lib/api";
+import type { BacktestRow, DailyBrief, DailySentiment, NewsRow, ReturnRow, StockRow, Summary } from "@/lib/api";
 
 type Props = {
   summary: Summary;
@@ -37,6 +37,7 @@ type Props = {
   returns: ReturnRow[];
   backtests: BacktestRow[];
   stocks: StockRow[];
+  dailyBrief: DailyBrief | null;
 };
 
 type ParsedBacktest = {
@@ -120,7 +121,7 @@ function nonNullRatio(rows: ReturnRow[], key: "future_return_1d" | "future_retur
   return rows.filter((row) => row[key] !== null && row[key] !== undefined).length / rows.length;
 }
 
-export function Dashboard({ summary, news, daily, returns, backtests, stocks }: Props) {
+export function Dashboard({ summary, news, daily, returns, backtests, stocks, dailyBrief }: Props) {
   const [activeTarget, setActiveTarget] = useState("ALL");
   const latestBacktest = backtests[0];
   const latestMetrics = parseJson<ParsedBacktest>(latestBacktest?.metrics);
@@ -254,6 +255,61 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks }: 
           </span>
         </div>
       </header>
+
+      <section className="daily-brief-panel" aria-label="daily market observation">
+        <div className="daily-brief-main">
+          <div className="panel-heading">
+            <div>
+              <h2>今日市場觀察</h2>
+              <p>{dailyBrief?.brief_date ?? "資料不足"} · daily tool layer</p>
+            </div>
+            <span className={`brief-label ${dailyBrief?.market_label === "情緒偏多" ? "positive" : dailyBrief?.market_label === "情緒偏空" ? "negative" : ""}`}>
+              {dailyBrief?.market_label ?? "資料不足"}
+            </span>
+          </div>
+          <p className="brief-summary">
+            {dailyBrief?.summary_text ?? "目前尚未產生 daily_brief。請先執行 backend/scripts/run_daily_update.py 或 generate_daily_brief.py。"}
+          </p>
+        </div>
+        <div className="brief-stat-grid">
+          <div>
+            <span>市場情緒分數</span>
+            <strong>{fmtDecimal(dailyBrief?.market_sentiment_score, 2)}</strong>
+          </div>
+          <div>
+            <span>今日新聞數</span>
+            <strong>{fmtNumber(dailyBrief?.news_count)}</strong>
+          </div>
+          <div>
+            <span>LLM 分析數</span>
+            <strong>{fmtNumber(dailyBrief?.analyzed_count)}</strong>
+          </div>
+          <div>
+            <span>最後更新</span>
+            <strong className="brief-time">{dailyBrief?.created_at ? dailyBrief.created_at.replace("T", " ").slice(0, 19) : "-"}</strong>
+          </div>
+        </div>
+        <div className="brief-targets">
+          <div>
+            <span>今日觀察標的</span>
+            <div>
+              {(dailyBrief?.top_positive_targets.length ? dailyBrief.top_positive_targets : []).slice(0, 5).map((row) => (
+                <strong key={row.target}>{row.target}</strong>
+              ))}
+              {!dailyBrief?.top_positive_targets.length && <em>資料不足</em>}
+            </div>
+          </div>
+          <div>
+            <span>今日風險標的</span>
+            <div>
+              {(dailyBrief?.risk_flags.length ? dailyBrief.risk_flags : []).slice(0, 5).map((row) => (
+                <strong key={`${row.target}-${row.reason}`}>{row.target}</strong>
+              ))}
+              {!dailyBrief?.risk_flags.length && <em>暫無明顯集中風險</em>}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="market-tape" aria-label="pipeline tape">
         <div>
