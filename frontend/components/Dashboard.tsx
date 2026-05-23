@@ -22,7 +22,6 @@ import {
   ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -121,11 +120,23 @@ function nonNullRatio(rows: ReturnRow[], key: "future_return_1d" | "future_retur
   return rows.filter((row) => row[key] !== null && row[key] !== undefined).length / rows.length;
 }
 
+function observationText(value: string | null | undefined) {
+  if (!value) return null;
+  return value.replace(/本摘要僅根據已處理資料產生，[^。]+。/g, "本摘要僅根據已處理資料產生，僅供市場觀察。");
+}
+
 export function Dashboard({ summary, news, daily, returns, backtests, stocks, dailyBrief }: Props) {
   const [activeTarget, setActiveTarget] = useState("ALL");
   const latestBacktest = backtests[0];
   const latestMetrics = parseJson<ParsedBacktest>(latestBacktest?.metrics);
   const latestConfig = parseJson<Record<string, string | number>>(latestBacktest?.config);
+
+  const pendingLlm = Math.max(summary.news_count - summary.analyzed_count, 0);
+  const analyzedRatio = summary.news_count ? summary.analyzed_count / summary.news_count : 0;
+  const failedRatio = summary.analyzed_count ? summary.failed_count / summary.analyzed_count : 0;
+  const coverage1d = nonNullRatio(returns, "future_return_1d");
+  const coverage3d = nonNullRatio(returns, "future_return_3d");
+  const coverage5d = nonNullRatio(returns, "future_return_5d");
 
   const sentimentBars = useMemo(
     () =>
@@ -155,7 +166,7 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([target, count]) => ({ target, count }));
+      .map(([target]) => ({ target }));
   }, [daily]);
 
   const filteredDaily = activeTarget === "ALL" ? daily : daily.filter((row) => row.target === activeTarget);
@@ -221,77 +232,84 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
     return `${dates[0]} - ${dates[dates.length - 1]}`;
   }, [returns]);
 
-  const analyzedRatio = summary.news_count ? summary.analyzed_count / summary.news_count : 0;
-  const failedRatio = summary.analyzed_count ? summary.failed_count / summary.analyzed_count : 0;
+  const marketToneClass =
+    dailyBrief?.market_label === "情緒偏多" ? "positive" : dailyBrief?.market_label === "情緒偏空" ? "negative" : "";
+
   const tapeItems = [
+    `DAILY BRIEF ${dailyBrief?.brief_date ?? "NO DATA"}`,
+    `MARKET ${dailyBrief?.market_label ?? "資料不足"}`,
     `RAW NEWS ${fmtNumber(summary.news_count)}`,
-    `LLM ${fmtNumber(summary.analyzed_count)} ANALYZED`,
-    `1D COVERAGE ${fmtPct(nonNullRatio(returns, "future_return_1d"))}`,
-    `3D COVERAGE ${fmtPct(nonNullRatio(returns, "future_return_3d"))}`,
-    `5D COVERAGE ${fmtPct(nonNullRatio(returns, "future_return_5d"))}`,
-    `BACKTEST ${fmtPct(latestMetrics?.strategy?.total_return, 2)}`,
-    `BENCHMARK ${fmtPct(latestMetrics?.benchmark?.total_return, 2)}`
+    `PENDING LLM ${fmtNumber(pendingLlm)}`,
+    `1D COVERAGE ${fmtPct(coverage1d)}`,
+    `3D COVERAGE ${fmtPct(coverage3d)}`,
+    `5D COVERAGE ${fmtPct(coverage5d)}`,
+    `RESEARCH BACKTEST ${fmtPct(latestMetrics?.strategy?.total_return, 2)}`
   ];
 
   return (
     <main className="dashboard-shell">
-      <header className="masthead">
-        <div>
-          <div className="eyebrow">
-            <Database size={15} />
-            TW Stock Sentiment Lab
-          </div>
-          <h1>台股新聞情緒研究工作台</h1>
-          <p className="lead">離線 LLM 標註、股價對齊、未來報酬與初版回測的整合檢視。</p>
-        </div>
-        <div className="status-stack" aria-label="pipeline status">
-          <span className="status-pill good">
-            <ShieldCheck size={15} />
-            Offline LLM pipeline
-          </span>
-          <span className="status-pill warn">
-            <AlertTriangle size={15} />
-            Research only
-          </span>
-        </div>
-      </header>
-
-      <section className="daily-brief-panel" aria-label="daily market observation">
-        <div className="daily-brief-main">
-          <div className="panel-heading">
-            <div>
-              <h2>今日市場觀察</h2>
-              <p>{dailyBrief?.brief_date ?? "資料不足"} · daily tool layer</p>
+      <section className="daily-command" aria-label="daily market observation">
+        <div className="command-header">
+          <div>
+            <div className="eyebrow">
+              <Database size={15} />
+              TW Stock Sentiment Lab
             </div>
-            <span className={`brief-label ${dailyBrief?.market_label === "情緒偏多" ? "positive" : dailyBrief?.market_label === "情緒偏空" ? "negative" : ""}`}>
-              {dailyBrief?.market_label ?? "資料不足"}
+            <h1>每日市場觀察工具</h1>
+            <p className="lead">以已處理新聞、離線 LLM 分析與 daily_sentiment 產生今日觀察，僅供本機研究工具使用。</p>
+          </div>
+          <div className="status-stack" aria-label="pipeline status">
+            <span className="status-pill good">
+              <ShieldCheck size={15} />
+              Offline LLM pipeline
+            </span>
+            <span className="status-pill warn">
+              <AlertTriangle size={15} />
+              Observation only
             </span>
           </div>
-          <p className="brief-summary">
-            {dailyBrief?.summary_text ?? "目前尚未產生 daily_brief。請先執行 backend/scripts/run_daily_update.py 或 generate_daily_brief.py。"}
-          </p>
         </div>
-        <div className="brief-stat-grid">
-          <div>
-            <span>市場情緒分數</span>
-            <strong>{fmtDecimal(dailyBrief?.market_sentiment_score, 2)}</strong>
+
+        <div className="daily-command-grid">
+          <div className="daily-brief-main">
+            <div className="panel-heading">
+              <div>
+                <h2>今日市場觀察</h2>
+                <p>{dailyBrief?.brief_date ?? "資料不足"} · latest daily_brief</p>
+              </div>
+              <span className={`brief-label ${marketToneClass}`}>{dailyBrief?.market_label ?? "資料不足"}</span>
+            </div>
+            <p className="brief-summary">
+              {observationText(dailyBrief?.summary_text) ??
+                "目前尚未產生 daily_brief。請先執行 backend/scripts/run_daily_update.py 或 generate_daily_brief.py。"}
+            </p>
           </div>
-          <div>
-            <span>今日新聞數</span>
-            <strong>{fmtNumber(dailyBrief?.news_count)}</strong>
-          </div>
-          <div>
-            <span>LLM 分析數</span>
-            <strong>{fmtNumber(dailyBrief?.analyzed_count)}</strong>
-          </div>
-          <div>
-            <span>最後更新</span>
-            <strong className="brief-time">{dailyBrief?.created_at ? dailyBrief.created_at.replace("T", " ").slice(0, 19) : "-"}</strong>
+
+          <div className="brief-stat-grid">
+            <div>
+              <span>市場情緒分數</span>
+              <strong>{fmtDecimal(dailyBrief?.market_sentiment_score, 2)}</strong>
+            </div>
+            <div>
+              <span>今日新聞數</span>
+              <strong>{fmtNumber(dailyBrief?.news_count)}</strong>
+            </div>
+            <div>
+              <span>LLM 分析數</span>
+              <strong>{fmtNumber(dailyBrief?.analyzed_count)}</strong>
+            </div>
+            <div>
+              <span>最後更新</span>
+              <strong className="brief-time">
+                {dailyBrief?.created_at ? dailyBrief.created_at.replace("T", " ").slice(0, 19) : "-"}
+              </strong>
+            </div>
           </div>
         </div>
-        <div className="brief-targets">
+
+        <div className="brief-targets triad">
           <div>
-            <span>今日觀察標的</span>
+            <span>情緒偏多觀察標的</span>
             <div>
               {(dailyBrief?.top_positive_targets.length ? dailyBrief.top_positive_targets : []).slice(0, 5).map((row) => (
                 <strong key={row.target}>{row.target}</strong>
@@ -300,7 +318,16 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
             </div>
           </div>
           <div>
-            <span>今日風險標的</span>
+            <span>情緒偏空觀察標的</span>
+            <div>
+              {(dailyBrief?.top_negative_targets.length ? dailyBrief.top_negative_targets : []).slice(0, 5).map((row) => (
+                <strong key={row.target}>{row.target}</strong>
+              ))}
+              {!dailyBrief?.top_negative_targets.length && <em>資料不足</em>}
+            </div>
+          </div>
+          <div>
+            <span>風險提醒</span>
             <div>
               {(dailyBrief?.risk_flags.length ? dailyBrief.risk_flags : []).slice(0, 5).map((row) => (
                 <strong key={`${row.target}-${row.reason}`}>{row.target}</strong>
@@ -319,7 +346,14 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
         </div>
       </section>
 
-      <section className="metric-grid" aria-label="data overview">
+      <section className="snapshot-heading" aria-label="research snapshot heading">
+        <div>
+          <h2>Research Snapshot</h2>
+          <p>研究資料狀態與樣本覆蓋，僅用於分析檢查。</p>
+        </div>
+      </section>
+
+      <section className="metric-grid" aria-label="research snapshot">
         <article className="metric-card">
           <span className="metric-icon blue">
             <Newspaper size={18} />
@@ -352,6 +386,40 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
           <strong>{fmtNumber(daily.length)}</strong>
           <small>{fmtNumber(stocks.length)} price series</small>
         </article>
+      </section>
+
+      <section className="system-status-card" aria-label="system status">
+        <div className="panel-heading">
+          <div>
+            <h2>System Status</h2>
+            <p>Daily tool readiness</p>
+          </div>
+          <ShieldCheck size={18} />
+        </div>
+        <div className="system-status-grid">
+          <div>
+            <span>raw_news</span>
+            <strong>{fmtNumber(summary.news_count)}</strong>
+          </div>
+          <div>
+            <span>LLM analyzed</span>
+            <strong>{fmtNumber(summary.analyzed_count)}</strong>
+          </div>
+          <div>
+            <span>pending LLM</span>
+            <strong>{fmtNumber(pendingLlm)}</strong>
+          </div>
+          <div>
+            <span>daily_brief latest</span>
+            <strong>{dailyBrief?.brief_date ?? "資料不足"}</strong>
+          </div>
+          <div>
+            <span>future return coverage</span>
+            <strong>
+              1d {fmtPct(coverage1d)} · 3d {fmtPct(coverage3d)} · 5d {fmtPct(coverage5d)}
+            </strong>
+          </div>
+        </div>
       </section>
 
       <section className="analysis-grid">
@@ -500,15 +568,15 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
           <div className="coverage-grid">
             <div>
               <span>1d</span>
-              <strong>{fmtPct(nonNullRatio(returns, "future_return_1d"))}</strong>
+              <strong>{fmtPct(coverage1d)}</strong>
             </div>
             <div>
               <span>3d</span>
-              <strong>{fmtPct(nonNullRatio(returns, "future_return_3d"))}</strong>
+              <strong>{fmtPct(coverage3d)}</strong>
             </div>
             <div>
               <span>5d</span>
-              <strong>{fmtPct(nonNullRatio(returns, "future_return_5d"))}</strong>
+              <strong>{fmtPct(coverage5d)}</strong>
             </div>
           </div>
           <table className="compact-table">
@@ -540,18 +608,18 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
         <article className="panel span-5">
           <div className="panel-heading">
             <div>
-              <h2>初版回測</h2>
-              <p>High Sentiment Equal Weight</p>
+              <h2>Research Backtest</h2>
+              <p>High Sentiment Equal Weight · short sample</p>
             </div>
             <Activity size={18} />
           </div>
           <div className="backtest-block">
             <div>
-              <span>Strategy total return</span>
+              <span>Research total return</span>
               <strong>{fmtPct(latestMetrics?.strategy?.total_return, 2)}</strong>
             </div>
             <div>
-              <span>Benchmark total return</span>
+              <span>0050 benchmark</span>
               <strong>{fmtPct(latestMetrics?.benchmark?.total_return, 2)}</strong>
             </div>
             <div>
@@ -564,7 +632,7 @@ export function Dashboard({ summary, news, daily, returns, backtests, stocks, da
             </div>
           </div>
           <div className="config-line">
-            {latestBacktest?.start_date ?? "-"} - {latestBacktest?.end_date ?? "-"} · top{" "}
+            Research only · {latestBacktest?.start_date ?? "-"} - {latestBacktest?.end_date ?? "-"} · top{" "}
             {latestConfig?.top_n ?? "-"} · {latestConfig?.rebalance_frequency ?? "-"} · cost{" "}
             {fmtPct(Number(latestConfig?.transaction_cost ?? 0), 2)}
           </div>

@@ -79,11 +79,164 @@ textarea {
   animation: shellIn 700ms ease-out both;
 }
 
+.daily-command {
+  min-height: min(760px, calc(100vh - 44px));
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  border: 1px solid rgba(64, 197, 255, 0.46);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(64, 197, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(57, 226, 155, 0.16), transparent 30%),
+    linear-gradient(135deg, rgba(64, 197, 255, 0.16), rgba(178, 140, 255, 0.11) 46%, rgba(255, 209, 102, 0.08)),
+    var(--panel);
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.48), inset 0 0 54px rgba(64, 197, 255, 0.12);
+  margin-bottom: 14px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.daily-command::before {
+  content: "";
+  position: absolute;
+  inset: -48% -16%;
+  background: conic-gradient(from 180deg, transparent, rgba(64, 197, 255, 0.12), transparent, rgba(57, 226, 155, 0.1), transparent);
+  animation: orbitGlow 12s linear infinite;
+  pointer-events: none;
+}
+
+.daily-command::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transform: translateX(-130%);
+  animation: cardSweep 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.command-header,
+.daily-command-grid,
+.daily-command .brief-targets {
+  position: relative;
+  z-index: 1;
+}
+
+.command-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(141, 170, 194, 0.34);
+}
+
+.daily-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+  gap: 14px;
+}
+
+.daily-command .daily-brief-main {
+  min-height: 250px;
+  border: 1px solid rgba(64, 197, 255, 0.28);
+  border-radius: 7px;
+  background: rgba(10, 15, 22, 0.46);
+  box-shadow: inset 0 0 36px rgba(64, 197, 255, 0.06);
+  padding: 16px;
+}
+
+.daily-command .brief-summary {
+  font-size: 17px;
+}
+
+.daily-command .brief-stat-grid {
+  align-content: stretch;
+}
+
+.brief-targets.triad {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.snapshot-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin: 20px 0 10px;
+  padding: 14px 0 10px;
+  border-bottom: 1px solid rgba(141, 170, 194, 0.32);
+}
+
+.snapshot-heading h2 {
+  font-size: 22px;
+}
+
+.snapshot-heading p {
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+.system-status-card {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(13, 19, 27, 0.82);
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.system-status-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent, rgba(57, 226, 155, 0.08), transparent);
+  transform: translateX(-130%);
+  animation: cardSweep 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.system-status-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.system-status-grid div {
+  min-height: 76px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-strong);
+  padding: 11px;
+}
+
+.system-status-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.system-status-grid strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 19px;
+  line-height: 1.25;
+}
+
 .masthead {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
-  align-items: end;
+  align-items: flex-end;
   padding: 24px 0 22px;
   border-bottom: 2px solid var(--ink);
   margin-bottom: 18px;
@@ -560,7 +713,7 @@ h2 {
 }
 
 .panel-heading.align-end {
-  align-items: end;
+  align-items: flex-end;
 }
 
 .panel-heading p {
@@ -1003,8 +1156,18 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 1100px) {
+  .command-header,
+  .daily-command-grid {
+    grid-template-columns: 1fr;
+  }
+
   .daily-brief-panel {
     grid-template-columns: 1fr;
+  }
+
+  .brief-targets.triad,
+  .system-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .metric-card {
@@ -1032,6 +1195,11 @@ tbody tr:last-child td {
     padding-top: 14px;
   }
 
+  .daily-command {
+    min-height: auto;
+    padding: 14px;
+  }
+
   .masthead {
     grid-template-columns: 1fr;
     align-items: start;
@@ -1052,7 +1220,9 @@ tbody tr:last-child td {
   .coverage-grid,
   .backtest-block,
   .brief-stat-grid,
-  .brief-targets {
+  .brief-targets,
+  .brief-targets.triad,
+  .system-status-grid {
     grid-template-columns: 1fr;
   }
 
