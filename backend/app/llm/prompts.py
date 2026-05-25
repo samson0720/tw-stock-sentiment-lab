@@ -1,7 +1,7 @@
 import json
 
 
-PROMPT_VERSION = "twstock-news-v2"
+PROMPT_VERSION = "twstock-news-v3"
 
 
 def full_news_text(content: str) -> str:
@@ -41,7 +41,11 @@ def build_news_analysis_messages(title: str, content: str) -> list[dict]:
                 "7. 如果新聞是產業趨勢，target 填具體產業或技術主題，例如 AI晶片、半導體、旅遊業、記憶體。\n"
                 "8. sentiment 是判斷這則新聞對 target 的投資或市場意義。\n"
                 "9. 若正負訊號混雜、只是公告、或資訊不足，sentiment 請選 neutral。\n"
-                "10. reason 請簡短說明，不要超過 40 字。\n\n"
+                "10. reason 請簡短說明，不要超過 40 字。\n"
+                "11. 若新聞重點是外資、投信、自營商買超/賣超/倒貨某檔或少數幾檔股票，news_type 應為 stock。\n"
+                "12. 若標題或全文主角是單一公司，target 應填該公司代號；沒有明確代號才填公司名稱。\n"
+                "13. market 只用於大盤、整體市場、國家股市或指數新聞，不可用於單一產業或單一公司。\n"
+                "14. news_type 與 target_type 必須一致；target_type=industry 時，news_type 通常應為 industry。\n\n"
                 "news_type 只能是：stock、etf、market、industry、macro、other\n"
                 "target_type 只能是：stock、etf、index、industry、commodity、macro、company_foreign、other\n"
                 "sentiment 只能是：positive、neutral、negative\n\n"
