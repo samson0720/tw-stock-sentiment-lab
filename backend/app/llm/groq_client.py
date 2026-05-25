@@ -98,7 +98,8 @@ def _analyze_with_groq(title: str, content: str, model: str | None = None) -> LL
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=60)
-    response.raise_for_status()
+    if response.status_code >= 400:
+        raise RuntimeError(f"Groq HTTP {response.status_code}: {response.text[:500]}")
     body = response.json()
     raw = body["choices"][0]["message"]["content"]
     parsed = _extract_json(raw)
