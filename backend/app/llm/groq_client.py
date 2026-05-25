@@ -91,7 +91,6 @@ def _analyze_with_groq(title: str, content: str, model: str | None = None) -> LL
         "messages": build_news_analysis_messages(title=title, content=content),
         "temperature": 0,
         "max_completion_tokens": 1000,
-        "response_format": {"type": "json_object"},
     }
     headers = {
         "Authorization": f"Bearer {settings.groq_api_key}",
