@@ -1,19 +1,37 @@
 import json
 
 
-PROMPT_VERSION = "twstock-news-v3"
+PROMPT_VERSION = "twstock-news-v4"
+
+CONTENT_CUTOFF_MARKERS = ("廣告", "更多", "檢視留言", "熱門留言", "相關內容")
 
 
 def full_news_text(content: str) -> str:
-    return "\n".join(line.strip() for line in content.splitlines() if line.strip())
+    text = "\n".join(line.strip() for line in content.splitlines() if line.strip())
+    marker_positions = [text.find(marker) for marker in CONTENT_CUTOFF_MARKERS if marker in text]
+    if marker_positions:
+        text = text[: min(marker_positions)].strip()
+    if len(text) > 5000:
+        text = f"{text[:2500]}\n[...]\n{text[-1500:]}"
+    return text
 
 
 def build_news_analysis_messages(title: str, content: str) -> list[dict]:
     schema = {
         "news_type": "stock | etf | market | industry | macro | other",
-        "target_type": "stock | etf | index | industry | commodity | macro | company_foreign | other",
+        "target_type": "stock | etf | index | industry | commodity | macro | region | company_foreign | other",
         "target": "main target explicitly mentioned in the news",
         "target_name": "Traditional Chinese target name, or empty string",
+        "targets": [
+            {
+                "target_type": "stock | etf | index | industry | commodity | macro | region | company_foreign | other",
+                "target": "target id/name explicitly mentioned in the news",
+                "target_name": "Traditional Chinese target name, or empty string",
+                "sentiment": "positive | neutral | negative",
+                "confidence": "number from 0 to 1",
+                "reason": "Traditional Chinese sentence, no more than 40 characters",
+            }
+        ],
         "sentiment": "positive | neutral | negative",
         "confidence": "number from 0 to 1",
         "reason": "Traditional Chinese sentence, no more than 40 characters",
@@ -45,9 +63,11 @@ def build_news_analysis_messages(title: str, content: str) -> list[dict]:
                 "11. 若新聞重點是外資、投信、自營商買超/賣超/倒貨某檔或少數幾檔股票，news_type 應為 stock。\n"
                 "12. 若標題或全文主角是單一公司，target 應填該公司代號；沒有明確代號才填公司名稱。\n"
                 "13. market 只用於大盤、整體市場、國家股市或指數新聞，不可用於單一產業或單一公司。\n"
-                "14. news_type 與 target_type 必須一致；target_type=industry 時，news_type 通常應為 industry。\n\n"
+                "14. news_type 與 target_type 必須一致；target_type=industry 時，news_type 通常應為 industry。\n"
+                "15. 若新聞同時明確影響多個標的，targets 必須列出多個標的；target 保留最主要標的。\n"
+                "16. 地區、國家、區域市場請用 target_type=region，例如台灣、美國、東南亞、歐洲。\n\n"
                 "news_type 只能是：stock、etf、market、industry、macro、other\n"
-                "target_type 只能是：stock、etf、index、industry、commodity、macro、company_foreign、other\n"
+                "target_type 只能是：stock、etf、index、industry、commodity、macro、region、company_foreign、other\n"
                 "sentiment 只能是：positive、neutral、negative\n\n"
                 f"Schema: {json.dumps(schema, ensure_ascii=False)}\n\n"
                 "JSON 格式：\n"
@@ -56,6 +76,7 @@ def build_news_analysis_messages(title: str, content: str) -> list[dict]:
                 '  "target_type": "",\n'
                 '  "target": "",\n'
                 '  "target_name": "",\n'
+                '  "targets": [],\n'
                 '  "sentiment": "",\n'
                 '  "confidence": 0.0,\n'
                 '  "reason": ""\n'

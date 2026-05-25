@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, time
 
 import pandas as pd
 
+from app.analysis.scoring import sentiment_score
 from app.analysis.targets import normalize_target
 from app.db.database import connect
 
@@ -34,7 +36,7 @@ def build_aligned_returns() -> int:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT n.id AS news_id, n.published_at, a.news_type, a.target, a.sentiment_score
+            SELECT n.id AS news_id, n.published_at, a.news_type, a.target, a.targets, a.sentiment_score
             FROM raw_news n
             JOIN llm_news_analysis a ON a.news_id = n.id
             WHERE a.status = 'success'
@@ -55,38 +57,53 @@ def build_aligned_returns() -> int:
 
     output: list[tuple] = []
     for row in rows:
-        target = normalize_target(row["news_type"], row["target"])
-        if not target or target not in by_stock:
-            continue
-        price_df = by_stock[target]
-        dates = price_df["date"].tolist()
-        trading_date = align_to_trading_date(row["published_at"], dates)
-        if not trading_date:
-            continue
-        idx_list = price_df.index[price_df["date"] == trading_date].tolist()
-        if not idx_list:
-            continue
-        idx = idx_list[0]
-        base_close = float(price_df.loc[idx, "close"])
+        try:
+            target_items = json.loads(row["targets"] or "[]")
+        except json.JSONDecodeError:
+            target_items = []
+        if not isinstance(target_items, list) or not target_items:
+            target_items = [{"target": row["target"], "target_type": row["news_type"], "sentiment_score": row["sentiment_score"]}]
+        for item in target_items:
+            if not isinstance(item, dict):
+                continue
+            target_news_type = str(item.get("target_type") or row["news_type"])
+            raw_target = item.get("target") or row["target"]
+            target = normalize_target(target_news_type, raw_target)
+            if not target or target not in by_stock:
+                continue
+            price_df = by_stock[target]
+            dates = price_df["date"].tolist()
+            trading_date = align_to_trading_date(row["published_at"], dates)
+            if not trading_date:
+                continue
+            idx_list = price_df.index[price_df["date"] == trading_date].tolist()
+            if not idx_list:
+                continue
+            idx = idx_list[0]
+            base_close = float(price_df.loc[idx, "close"])
 
-        def future_return(days: int) -> float | None:
-            future_idx = idx + days
-            if future_idx >= len(price_df) or base_close == 0:
-                return None
-            return float(price_df.loc[future_idx, "close"]) / base_close - 1.0
+            def future_return(days: int) -> float | None:
+                future_idx = idx + days
+                if future_idx >= len(price_df) or base_close == 0:
+                    return None
+                return float(price_df.loc[future_idx, "close"]) / base_close - 1.0
 
-        output.append(
-            (
-                row["news_id"],
-                trading_date,
-                target,
-                row["news_type"],
-                row["sentiment_score"],
-                future_return(1),
-                future_return(3),
-                future_return(5),
+            if item.get("sentiment") is not None or item.get("confidence") is not None:
+                item_sentiment_score = sentiment_score(item.get("sentiment"), item.get("confidence"))
+            else:
+                item_sentiment_score = row["sentiment_score"]
+            output.append(
+                (
+                    row["news_id"],
+                    trading_date,
+                    target,
+                    row["news_type"],
+                    item_sentiment_score,
+                    future_return(1),
+                    future_return(3),
+                    future_return(5),
+                )
             )
-        )
 
     with connect() as conn:
         conn.execute("DELETE FROM aligned_news_returns")

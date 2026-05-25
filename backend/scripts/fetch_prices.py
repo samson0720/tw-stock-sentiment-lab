@@ -1,5 +1,6 @@
 from pathlib import Path
 import argparse
+import json
 import sys
 
 import pandas as pd
@@ -20,14 +21,24 @@ def _targets_from_db() -> list[str]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT DISTINCT news_type, target
+            SELECT news_type, target, targets
             FROM llm_news_analysis
             WHERE status = 'success'
               AND news_type IN ('stock', 'etf', 'market', 'industry')
               AND target IS NOT NULL
             """
         ).fetchall()
-    targets = {normalize_target(row["news_type"], row["target"]) for row in rows}
+    targets = set()
+    for row in rows:
+        try:
+            target_items = json.loads(row["targets"] or "[]")
+        except json.JSONDecodeError:
+            target_items = []
+        if not isinstance(target_items, list) or not target_items:
+            target_items = [{"target": row["target"], "target_type": row["news_type"]}]
+        for item in target_items:
+            if isinstance(item, dict):
+                targets.add(normalize_target(str(item.get("target_type") or row["news_type"]), item.get("target") or row["target"]))
     stock_ids = {t for t in targets if t and str(t).isdigit() and len(str(t)) == 4}
     return sorted(REQUIRED_STOCK_IDS | stock_ids)
 

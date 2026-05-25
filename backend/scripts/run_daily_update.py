@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -73,7 +74,7 @@ def _planned_price_targets() -> list[str]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT DISTINCT news_type, target
+            SELECT news_type, target, targets
             FROM llm_news_analysis
             WHERE status = 'success'
               AND news_type IN ('stock', 'etf', 'market', 'industry')
@@ -81,7 +82,17 @@ def _planned_price_targets() -> list[str]:
             """
         ).fetchall()
     required = {"0050", "2330", "2317", "2454", "2303", "3481"}
-    targets = {normalize_target(row["news_type"], row["target"]) for row in rows}
+    targets = set()
+    for row in rows:
+        try:
+            target_items = json.loads(row["targets"] or "[]")
+        except json.JSONDecodeError:
+            target_items = []
+        if not isinstance(target_items, list) or not target_items:
+            target_items = [{"target": row["target"], "target_type": row["news_type"]}]
+        for item in target_items:
+            if isinstance(item, dict):
+                targets.add(normalize_target(str(item.get("target_type") or row["news_type"]), item.get("target") or row["target"]))
     stock_ids = {str(t) for t in targets if t and str(t).isdigit() and len(str(t)) == 4}
     return sorted(required | stock_ids)
 

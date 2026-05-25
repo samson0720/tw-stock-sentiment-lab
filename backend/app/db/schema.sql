@@ -12,9 +12,10 @@ CREATE TABLE IF NOT EXISTS llm_news_analysis (
     news_id INTEGER PRIMARY KEY,
     status TEXT NOT NULL DEFAULT 'success' CHECK(status IN ('success', 'failed')),
     news_type TEXT CHECK(news_type IN ('stock', 'etf', 'market', 'industry', 'macro', 'other')),
-    target_type TEXT CHECK(target_type IN ('stock', 'etf', 'index', 'industry', 'commodity', 'macro', 'company_foreign', 'other')),
+    target_type TEXT CHECK(target_type IN ('stock', 'etf', 'index', 'industry', 'commodity', 'macro', 'region', 'company_foreign', 'other')),
     target TEXT,
     target_name TEXT,
+    targets TEXT NOT NULL DEFAULT '[]',
     sentiment TEXT CHECK(sentiment IN ('positive', 'neutral', 'negative')),
     confidence REAL CHECK(confidence >= 0 AND confidence <= 1),
     reason TEXT NOT NULL DEFAULT '',
@@ -40,7 +41,7 @@ CREATE TABLE IF NOT EXISTS stock_prices (
 );
 
 CREATE TABLE IF NOT EXISTS aligned_news_returns (
-    news_id INTEGER PRIMARY KEY,
+    news_id INTEGER NOT NULL,
     trading_date TEXT NOT NULL,
     target TEXT NOT NULL,
     news_type TEXT NOT NULL,
@@ -48,6 +49,7 @@ CREATE TABLE IF NOT EXISTS aligned_news_returns (
     future_return_1d REAL,
     future_return_3d REAL,
     future_return_5d REAL,
+    PRIMARY KEY(news_id, target),
     FOREIGN KEY(news_id) REFERENCES raw_news(id) ON DELETE CASCADE
 );
 

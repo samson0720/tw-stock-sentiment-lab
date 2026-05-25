@@ -12,6 +12,12 @@ from app.config import get_settings
 from app.llm.prompts import PROMPT_VERSION, build_news_analysis_messages
 
 
+class RateLimitError(RuntimeError):
+    def __init__(self, message: str, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 @dataclass
 class LLMResult:
     status: str
@@ -53,17 +59,18 @@ def _rules_fallback(title: str, content: str) -> LLMResult:
         "target_type": "other",
         "target": None,
         "target_name": "",
+        "targets": [],
         "sentiment": "neutral",
         "confidence": 0.0,
         "reason": "LLM失敗，未做標註",
     }
     raw = json.dumps(data, ensure_ascii=False)
     return LLMResult(
-        status="success",
+        status="failed",
         model_name="rules-fallback",
         prompt_version=PROMPT_VERSION,
         raw_response=raw,
-        data=data,
+        data=None,
     )
 
 
@@ -109,6 +116,19 @@ def _analyze_with_groq(title: str, content: str, model: str | None = None) -> LL
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=60)
+    if response.status_code == 429:
+        retry_after = response.headers.get("Retry-After")
+        retry_seconds: float | None = None
+        if retry_after:
+            try:
+                retry_seconds = float(retry_after)
+            except ValueError:
+                retry_seconds = None
+        if retry_seconds is None:
+            match = re.search(r"try again in ([0-9.]+)s", response.text, flags=re.IGNORECASE)
+            if match:
+                retry_seconds = float(match.group(1))
+        raise RateLimitError(f"Groq HTTP 429: {response.text[:500]}", retry_after=retry_seconds)
     if response.status_code >= 400:
         raise RuntimeError(f"Groq HTTP {response.status_code}: {response.text[:500]}")
     body = response.json()
@@ -129,13 +149,25 @@ def _analyze_with_groq(title: str, content: str, model: str | None = None) -> LL
 def analyze_news(title: str, content: str, model: str | None = None) -> LLMResult:
     settings = get_settings()
     last_error: str | None = None
-    for attempt in range(settings.llm_max_retries + 1):
+    max_attempts = max(settings.llm_max_retries + 1, 1)
+    max_rate_limit_attempts = max(max_attempts, 4)
+    attempt = 0
+    while attempt < max_rate_limit_attempts:
         try:
             if settings.llm_provider.lower() == "groq":
                 return _analyze_with_groq(title, content, model=model)
             return _analyze_with_ollama(title, content, model=model)
+        except RateLimitError as exc:
+            last_error = str(exc)
+            attempt += 1
+            if attempt >= max_rate_limit_attempts:
+                break
+            time.sleep(max(1.0, min(60.0, exc.retry_after or (2 ** attempt * 3))))
         except Exception as exc:
             last_error = str(exc)
+            attempt += 1
+            if attempt >= max_attempts:
+                break
             time.sleep(min(60, 2 ** attempt * 3))
 
     fallback = _rules_fallback(title, content)

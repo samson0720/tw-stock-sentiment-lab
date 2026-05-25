@@ -1,5 +1,6 @@
 from pathlib import Path
 import argparse
+import json
 import sys
 
 import pandas as pd
@@ -27,7 +28,7 @@ def main() -> None:
         }
         rows = conn.execute(
             """
-            SELECT a.news_type, a.target AS original_target, n.title AS example_title
+            SELECT a.news_type, a.target AS original_target, a.targets, n.title AS example_title
             FROM llm_news_analysis a
             JOIN raw_news n ON n.id = a.news_id
             WHERE a.status = 'success'
@@ -38,18 +39,27 @@ def main() -> None:
 
     records: list[dict[str, object]] = []
     for row in rows:
-        original_target = row["original_target"]
-        normalized_target = normalize_target(row["news_type"], original_target)
-        if normalized_target and normalized_target in price_targets:
-            continue
-        records.append(
-            {
-                "original_target": original_target,
-                "normalized_target": normalized_target or "",
-                "news_type": row["news_type"],
-                "example_title": row["example_title"],
-            }
-        )
+        try:
+            target_items = json.loads(row["targets"] or "[]")
+        except json.JSONDecodeError:
+            target_items = []
+        if not isinstance(target_items, list) or not target_items:
+            target_items = [{"target": row["original_target"], "target_type": row["news_type"]}]
+        for item in target_items:
+            if not isinstance(item, dict):
+                continue
+            original_target = item.get("target") or row["original_target"]
+            normalized_target = normalize_target(str(item.get("target_type") or row["news_type"]), original_target)
+            if normalized_target and normalized_target in price_targets:
+                continue
+            records.append(
+                {
+                    "original_target": original_target,
+                    "normalized_target": normalized_target or "",
+                    "news_type": row["news_type"],
+                    "example_title": row["example_title"],
+                }
+            )
 
     if records:
         df = pd.DataFrame(records)

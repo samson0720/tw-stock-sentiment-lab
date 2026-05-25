@@ -17,7 +17,7 @@ from app.llm.prompts import PROMPT_VERSION
 
 def _pending_news(limit: int, reanalyze_old_prompts: bool = False) -> list[dict]:
     prompt_filter = (
-        "a.news_id IS NULL OR a.prompt_version != ? OR a.model_name = 'rules-fallback'"
+        "a.news_id IS NULL OR a.prompt_version != ? OR a.status = 'failed'"
         if reanalyze_old_prompts
         else "a.news_id IS NULL"
     )
@@ -66,6 +66,7 @@ def main() -> None:
                 data["target_type"],
                 data["target"],
                 data["target_name"],
+                json.dumps(data["targets"], ensure_ascii=False),
                 data["sentiment"],
                 data["confidence"],
                 data["reason"],
@@ -83,6 +84,7 @@ def main() -> None:
                 None,
                 None,
                 None,
+                "[]",
                 None,
                 None,
                 "",
@@ -96,9 +98,9 @@ def main() -> None:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO llm_news_analysis
-                (news_id, status, news_type, target_type, target, target_name, sentiment, confidence, reason,
+                (news_id, status, news_type, target_type, target, target_name, targets, sentiment, confidence, reason,
                  sentiment_score, model_name, prompt_version, raw_response, error_message, processed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 """,
                 values,
             )
