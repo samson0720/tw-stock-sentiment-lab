@@ -8,11 +8,11 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.analysis.scoring import normalize_analysis
+from app.analysis.scoring import augment_with_explicit_targets, normalize_analysis
 from app.config import get_settings
 from app.db.database import connect
 from app.llm.groq_client import analyze_news
-from app.llm.prompts import PROMPT_VERSION
+from app.llm.prompts import PROMPT_VERSION, full_news_text
 
 
 def _pending_news(limit: int, reanalyze_old_prompts: bool = False) -> list[dict]:
@@ -59,6 +59,7 @@ def main() -> None:
         result = analyze_news(row["title"], row["content"], model=args.model)
         if result.status == "success" and result.data is not None:
             data = normalize_analysis(result.data)
+            data = augment_with_explicit_targets(data, row["title"], full_news_text(row["content"]))
             values = (
                 row["id"],
                 "success",

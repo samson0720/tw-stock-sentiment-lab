@@ -1,9 +1,9 @@
 import json
 
 
-PROMPT_VERSION = "twstock-news-v4"
+PROMPT_VERSION = "twstock-news-v6"
 
-CONTENT_CUTOFF_MARKERS = ("廣告", "更多", "檢視留言", "熱門留言", "相關內容")
+CONTENT_CUTOFF_MARKERS = ("廣告", "更多FTNN", "更多新聞", "檢視留言", "熱門留言", "相關內容")
 
 
 def full_news_text(content: str) -> str:
@@ -66,6 +66,11 @@ def build_news_analysis_messages(title: str, content: str) -> list[dict]:
                 "14. news_type 與 target_type 必須一致；target_type=industry 時，news_type 通常應為 industry。\n"
                 "15. 若新聞同時明確影響多個標的，targets 必須列出多個標的；target 保留最主要標的。\n"
                 "16. 地區、國家、區域市場請用 target_type=region，例如台灣、美國、東南亞、歐洲。\n\n"
+                "17. 如果新聞標題或正文明確提到「這幾檔」、「多檔」、「族群」、「概念股」、"
+                "「買超前十大」、「賣超前十大」，targets 請列出 2 到 5 個最重要標的。\n"
+                "18. 主 target 仍選擇新聞最主要聚焦的標的；若標題特別點名某一家公司，主 target 選該公司。\n"
+                "19. 個股 target 一律優先輸出股票代號；target_name 才放公司名稱，例如 target=\"2313\", target_name=\"華通\"。\n"
+                "20. 不要只因為其中一家公司金額最大，就忽略正文中明確列為主角的其他標的。\n\n"
                 "news_type 只能是：stock、etf、market、industry、macro、other\n"
                 "target_type 只能是：stock、etf、index、industry、commodity、macro、region、company_foreign、other\n"
                 "sentiment 只能是：positive、neutral、negative\n\n"
