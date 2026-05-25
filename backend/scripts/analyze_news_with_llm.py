@@ -69,7 +69,7 @@ def main() -> None:
                 result.model_name,
                 result.prompt_version,
                 result.raw_response,
-                None,
+                result.error_message,
             )
         else:
             values = (

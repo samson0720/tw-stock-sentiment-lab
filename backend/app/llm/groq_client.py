@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -22,26 +21,6 @@ class LLMResult:
     error_message: str | None = None
 
 
-KNOWN_STOCKS = {
-    "台積電": "2330",
-    "聯發科": "2454",
-    "鴻海": "2317",
-    "廣達": "2382",
-    "緯創": "3231",
-    "台達電": "2308",
-    "長榮": "2603",
-    "陽明": "2609",
-    "萬海": "2615",
-    "富邦金": "2881",
-    "國泰金": "2882",
-}
-
-POSITIVE_TERMS = ["創高", "成長", "大增", "上修", "看旺", "利多", "漲", "突破", "回升", "優於"]
-NEGATIVE_TERMS = ["下滑", "衰退", "保守", "利空", "跌", "重挫", "下修", "虧損", "不如", "疑慮"]
-MARKET_TERMS = ["台股", "加權指數", "大盤", "櫃買", "0050", "成交量"]
-INDUSTRY_TERMS = ["AI", "半導體", "記憶體", "航運", "金融股", "電動車", "伺服器", "觀光", "生技"]
-
-
 def _extract_json(text: str) -> dict[str, Any]:
     try:
         return json.loads(text)
@@ -58,48 +37,14 @@ def _messages_to_prompt(messages: list[dict[str, str]]) -> str:
 
 
 def _rules_fallback(title: str, content: str) -> LLMResult:
-    text = f"{title} {content}"
-    news_type = "ignore"
-    target: str | None = None
-
-    for name, stock_id in KNOWN_STOCKS.items():
-        if name in text or re.search(rf"(?<!\d){stock_id}(?!\d)", text):
-            news_type = "stock"
-            target = stock_id
-            break
-
-    if news_type == "ignore" and any(term in text for term in MARKET_TERMS):
-        news_type = "market"
-        target = "0050"
-
-    if news_type == "ignore":
-        for term in INDUSTRY_TERMS:
-            if term in text:
-                news_type = "industry"
-                target = term
-                break
-
-    pos_hits = sum(term in text for term in POSITIVE_TERMS)
-    neg_hits = sum(term in text for term in NEGATIVE_TERMS)
-    if pos_hits > neg_hits:
-        sentiment = "positive"
-    elif neg_hits > pos_hits:
-        sentiment = "negative"
-    else:
-        sentiment = "neutral"
-
-    confidence = 0.55 if news_type != "ignore" else 0.4
-    if pos_hits != neg_hits:
-        confidence = min(0.85, confidence + 0.1 * abs(pos_hits - neg_hits))
-
     data = {
-        "news_type": "other" if news_type == "ignore" else news_type,
-        "target_type": "stock" if news_type == "stock" else "index" if news_type == "market" else "industry" if news_type == "industry" else "other",
-        "target": target,
+        "news_type": "other",
+        "target_type": "other",
+        "target": None,
         "target_name": "",
-        "sentiment": sentiment,
-        "confidence": confidence,
-        "reason": "規則型 fallback：依公司、市場、產業與情緒關鍵字判斷，正式報告需人工複核。",
+        "sentiment": "neutral",
+        "confidence": 0.0,
+        "reason": "LLM失敗，未做標註",
     }
     raw = json.dumps(data, ensure_ascii=False)
     return LLMResult(
