@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -21,14 +22,24 @@ class LLMResult:
     error_message: str | None = None
 
 
-def _extract_json(text: str) -> dict[str, Any]:
+def _json_loads(text: str) -> dict[str, Any]:
     try:
         return json.loads(text)
+    except json.JSONDecodeError:
+        fixed = re.sub(r"\\u(?![0-9a-fA-F]{4})", r"\\\\u", text)
+        if fixed != text:
+            return json.loads(fixed)
+        raise
+
+
+def _extract_json(text: str) -> dict[str, Any]:
+    try:
+        return _json_loads(text)
     except json.JSONDecodeError:
         start = text.find("{")
         end = text.rfind("}")
         if start >= 0 and end > start:
-            return json.loads(text[start : end + 1])
+            return _json_loads(text[start : end + 1])
         raise
 
 
@@ -102,7 +113,10 @@ def _analyze_with_groq(title: str, content: str, model: str | None = None) -> LL
         raise RuntimeError(f"Groq HTTP {response.status_code}: {response.text[:500]}")
     body = response.json()
     raw = body["choices"][0]["message"]["content"]
-    parsed = _extract_json(raw)
+    try:
+        parsed = _extract_json(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid JSON response: {exc}; raw={raw[:500]}") from exc
     return LLMResult(
         status="success",
         model_name=model_name,
