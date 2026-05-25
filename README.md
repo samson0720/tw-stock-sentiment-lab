@@ -78,7 +78,7 @@ Create `backend/.env`:
 
 ```text
 GROQ_API_KEY=your_groq_api_key
-GROQ_MODEL=llama-3.1-8b-instant
+GROQ_MODEL=llama-3.3-70b-versatile
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 LLM_PROVIDER=groq
 LLM_REQUEST_SLEEP_SECONDS=2
