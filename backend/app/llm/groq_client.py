@@ -93,8 +93,10 @@ def _rules_fallback(title: str, content: str) -> LLMResult:
         confidence = min(0.85, confidence + 0.1 * abs(pos_hits - neg_hits))
 
     data = {
-        "news_type": news_type,
+        "news_type": "other" if news_type == "ignore" else news_type,
+        "target_type": "stock" if news_type == "stock" else "index" if news_type == "market" else "industry" if news_type == "industry" else "other",
         "target": target,
+        "target_name": "",
         "sentiment": sentiment,
         "confidence": confidence,
         "reason": "規則型 fallback：依公司、市場、產業與情緒關鍵字判斷，正式報告需人工複核。",

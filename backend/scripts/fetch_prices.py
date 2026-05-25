@@ -23,7 +23,7 @@ def _targets_from_db() -> list[str]:
             SELECT DISTINCT news_type, target
             FROM llm_news_analysis
             WHERE status = 'success'
-              AND news_type IN ('stock', 'market', 'industry')
+              AND news_type IN ('stock', 'etf', 'market', 'industry')
               AND target IS NOT NULL
             """
         ).fetchall()

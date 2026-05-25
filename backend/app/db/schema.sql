@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS raw_news (
 CREATE TABLE IF NOT EXISTS llm_news_analysis (
     news_id INTEGER PRIMARY KEY,
     status TEXT NOT NULL DEFAULT 'success' CHECK(status IN ('success', 'failed')),
-    news_type TEXT CHECK(news_type IN ('stock', 'market', 'industry', 'ignore')),
+    news_type TEXT CHECK(news_type IN ('stock', 'etf', 'market', 'industry', 'macro', 'other')),
+    target_type TEXT CHECK(target_type IN ('stock', 'etf', 'index', 'industry', 'commodity', 'macro', 'company_foreign', 'other')),
     target TEXT,
+    target_name TEXT,
     sentiment TEXT CHECK(sentiment IN ('positive', 'neutral', 'negative')),
     confidence REAL CHECK(confidence >= 0 AND confidence <= 1),
     reason TEXT NOT NULL DEFAULT '',

@@ -5,7 +5,7 @@ def list_news(limit: int = 100, news_type: str | None = None, sentiment: str | N
     query = """
         SELECT
             n.id, n.title, n.content, n.source, n.published_at, n.url, n.crawled_at,
-            a.status, a.news_type, a.target, a.sentiment, a.confidence, a.reason,
+            a.status, a.news_type, a.target_type, a.target, a.target_name, a.sentiment, a.confidence, a.reason,
             a.sentiment_score, a.model_name, a.prompt_version, a.error_message
         FROM raw_news n
         LEFT JOIN llm_news_analysis a ON a.news_id = n.id
@@ -20,7 +20,7 @@ def list_news(limit: int = 100, news_type: str | None = None, sentiment: str | N
 def get_news(news_id: int) -> dict | None:
     query = """
         SELECT
-            n.*, a.status, a.news_type, a.target, a.sentiment, a.confidence, a.reason,
+            n.*, a.status, a.news_type, a.target_type, a.target, a.target_name, a.sentiment, a.confidence, a.reason,
             a.sentiment_score, a.model_name, a.prompt_version, a.raw_response, a.error_message
         FROM raw_news n
         LEFT JOIN llm_news_analysis a ON a.news_id = n.id

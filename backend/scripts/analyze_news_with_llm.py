@@ -12,20 +12,23 @@ from app.analysis.scoring import normalize_analysis
 from app.config import get_settings
 from app.db.database import connect
 from app.llm.groq_client import analyze_news
+from app.llm.prompts import PROMPT_VERSION
 
 
-def _pending_news(limit: int) -> list[dict]:
+def _pending_news(limit: int, reanalyze_old_prompts: bool = False) -> list[dict]:
+    prompt_filter = "a.news_id IS NULL OR a.prompt_version != ?" if reanalyze_old_prompts else "a.news_id IS NULL"
+    params: tuple[object, ...] = (PROMPT_VERSION, limit) if reanalyze_old_prompts else (limit,)
     with connect() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT n.id, n.title, n.content
             FROM raw_news n
             LEFT JOIN llm_news_analysis a ON a.news_id = n.id
-            WHERE a.news_id IS NULL
+            WHERE {prompt_filter}
             ORDER BY COALESCE(n.published_at, n.crawled_at) DESC
             LIMIT ?
             """,
-            (limit,),
+            params,
         ).fetchall()
     return [dict(row) for row in rows]
 
@@ -35,11 +38,16 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--model", default=None)
     parser.add_argument("--sleep", type=float, default=None)
+    parser.add_argument(
+        "--reanalyze-old-prompts",
+        action="store_true",
+        help="Re-run rows analyzed with an older prompt_version as well as pending rows.",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
     sleep_seconds = settings.llm_request_sleep_seconds if args.sleep is None else args.sleep
-    rows = _pending_news(args.limit)
+    rows = _pending_news(args.limit, reanalyze_old_prompts=args.reanalyze_old_prompts)
     print(f"Pending news: {len(rows)}")
 
     processed = 0
@@ -51,7 +59,9 @@ def main() -> None:
                 row["id"],
                 "success",
                 data["news_type"],
+                data["target_type"],
                 data["target"],
+                data["target_name"],
                 data["sentiment"],
                 data["confidence"],
                 data["reason"],
@@ -69,6 +79,8 @@ def main() -> None:
                 None,
                 None,
                 None,
+                None,
+                None,
                 "",
                 None,
                 result.model_name,
@@ -80,9 +92,9 @@ def main() -> None:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO llm_news_analysis
-                (news_id, status, news_type, target, sentiment, confidence, reason,
+                (news_id, status, news_type, target_type, target, target_name, sentiment, confidence, reason,
                  sentiment_score, model_name, prompt_version, raw_response, error_message, processed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 """,
                 values,
             )

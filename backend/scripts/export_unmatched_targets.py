@@ -31,7 +31,7 @@ def main() -> None:
             FROM llm_news_analysis a
             JOIN raw_news n ON n.id = a.news_id
             WHERE a.status = 'success'
-              AND a.news_type IN ('stock', 'market', 'industry')
+              AND a.news_type IN ('stock', 'etf', 'market', 'industry')
               AND a.target IS NOT NULL
             """
         ).fetchall()

@@ -22,7 +22,9 @@ export type NewsRow = {
   source: string;
   published_at: string | null;
   news_type: string | null;
+  target_type: string | null;
   target: string | null;
+  target_name: string | null;
   sentiment: string | null;
   sentiment_score: number | null;
   confidence: number | null;

@@ -76,7 +76,7 @@ def _planned_price_targets() -> list[str]:
             SELECT DISTINCT news_type, target
             FROM llm_news_analysis
             WHERE status = 'success'
-              AND news_type IN ('stock', 'market', 'industry')
+              AND news_type IN ('stock', 'etf', 'market', 'industry')
               AND target IS NOT NULL
             """
         ).fetchall()
@@ -184,6 +184,11 @@ def main() -> None:
     parser.add_argument("--price-start-date", default="2026-03-01")
     parser.add_argument("--price-source", choices=["finmind", "yfinance"], default="finmind")
     parser.add_argument("--skip-llm", action="store_true", help="Do not call Groq; rebuild from existing analysis only.")
+    parser.add_argument(
+        "--reanalyze-old-prompts",
+        action="store_true",
+        help="Re-run rows analyzed with an older LLM prompt_version.",
+    )
     parser.add_argument("--skip-fetch-news", action="store_true", help="Do not fetch latest news.")
     parser.add_argument("--skip-price", action="store_true", help="Do not update stock prices.")
     args = parser.parse_args()
@@ -213,10 +218,11 @@ def main() -> None:
                 _dry_step(status, "analyze_news_with_llm.py", "Skipped; no Groq call will be made.")
             else:
                 analyze_count = min(limit, pending_before)
+                scope = "pending and old-prompt" if args.reanalyze_old_prompts else "pending"
                 _dry_step(
                     status,
                     "analyze_news_with_llm.py",
-                    f"Would analyze up to {analyze_count} pending news rows. Groq is not called in dry-run.",
+                    f"Would analyze up to {analyze_count} {scope} news rows. Groq is not called in dry-run.",
                 )
             if args.skip_price:
                 _dry_step(status, "fetch_prices.py", "Skipped by --skip-price.")
@@ -244,7 +250,10 @@ def main() -> None:
             _log("SKIP analyze_news_with_llm.py; Groq will not be called.")
             status.steps.append(StepResult("analyze_news_with_llm.py", "skipped", detail="Skipped by --skip-llm or zero limit."))
         else:
-            _run_script("analyze_news_with_llm.py", ["--limit", str(limit), "--sleep", str(args.llm_sleep)], status)
+            llm_args = ["--limit", str(limit), "--sleep", str(args.llm_sleep)]
+            if args.reanalyze_old_prompts:
+                llm_args.append("--reanalyze-old-prompts")
+            _run_script("analyze_news_with_llm.py", llm_args, status)
 
         if args.skip_price:
             _log("SKIP fetch_prices.py by --skip-price")

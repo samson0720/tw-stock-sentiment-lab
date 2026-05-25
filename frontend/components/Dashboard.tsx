@@ -58,8 +58,10 @@ function labelSentiment(value: string | null | undefined) {
 function labelType(value: string | null | undefined) {
   if (value === "market") return "市場";
   if (value === "stock") return "個股";
+  if (value === "etf") return "ETF";
   if (value === "industry") return "產業";
-  if (value === "ignore") return "忽略";
+  if (value === "macro") return "總經";
+  if (value === "other" || value === "ignore") return "其他";
   return "待分類";
 }
 
