@@ -31,6 +31,8 @@ def _normalized_target_item(data: dict, default_sentiment: str, default_confiden
     target_type = str(data.get("target_type") or "other").lower().strip()
     if target_type not in ALLOWED_TARGET_TYPES:
         target_type = "other"
+    if target_type == "stock" and not re.fullmatch(r"\d{4}", target):
+        target_type = "company_foreign"
     sentiment = _normalized_sentiment(data.get("sentiment") or default_sentiment)
     confidence = _normalized_confidence(data.get("confidence", default_confidence))
     return {
@@ -56,6 +58,8 @@ def normalize_analysis(data: dict) -> dict:
     confidence = _normalized_confidence(data.get("confidence", 0.0))
     target = str(data.get("target") or "").strip() or None
     target_name = str(data.get("target_name") or "").strip()
+    if target_type == "stock" and target and not re.fullmatch(r"\d{4}", target):
+        target_type = "company_foreign"
 
     targets = []
     raw_targets = data.get("targets")
@@ -90,6 +94,7 @@ def normalize_analysis(data: dict) -> dict:
         targets = []
     elif target is None:
         target_type = "other"
+    targets = targets[:5]
     return {
         "news_type": news_type,
         "target_type": target_type,
