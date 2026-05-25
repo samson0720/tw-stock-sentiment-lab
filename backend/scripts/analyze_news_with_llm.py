@@ -16,7 +16,11 @@ from app.llm.prompts import PROMPT_VERSION
 
 
 def _pending_news(limit: int, reanalyze_old_prompts: bool = False) -> list[dict]:
-    prompt_filter = "a.news_id IS NULL OR a.prompt_version != ?" if reanalyze_old_prompts else "a.news_id IS NULL"
+    prompt_filter = (
+        "a.news_id IS NULL OR a.prompt_version != ? OR a.model_name = 'rules-fallback'"
+        if reanalyze_old_prompts
+        else "a.news_id IS NULL"
+    )
     params: tuple[object, ...] = (PROMPT_VERSION, limit) if reanalyze_old_prompts else (limit,)
     with connect() as conn:
         rows = conn.execute(
