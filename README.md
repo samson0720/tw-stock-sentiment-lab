@@ -144,9 +144,9 @@ Yahoo Finance Taiwan 新聞爬取
 | 元件 | 說明 |
 |------|------|
 | **Groq API** | 推論服務（免費 tier 可用） |
-| `llama-4-maverick` | 主要使用模型（速度快） |
-| `qwen-qwq-32b` | 備用模型（推理較強） |
-| Prompt version | `twstock-news-v6`（含 20 條規則的結構化 JSON 輸出） |
+| `meta-llama/llama-4-scout-17b-16e-instruct` | 主要使用模型（速度快） |
+| `llama-3.3-70b-versatile` | 備用模型（推理較強） |
+| Prompt version | `twstock-news-v7`（含 few-shot 示例 + 信心校準指引） |
 | Fallback | LLM API 失敗時記錄 `status=fallback`（rules-fallback），不偽造分析結果 |
 
 ### Frontend
@@ -212,7 +212,7 @@ GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
 
 # 選填（可保留預設值）
 GROQ_BASE_URL=https://api.groq.com/openai/v1
-GROQ_MODEL=llama-4-maverick-17b-128e-instruct
+GROQ_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 LLM_PROVIDER=groq
 LLM_REQUEST_SLEEP_SECONDS=1
 LLM_MAX_RETRIES=4
@@ -296,10 +296,10 @@ python scripts/analyze_news_with_llm.py --limit 80
 python scripts/analyze_news_with_llm.py --limit 80 --reanalyze-old-prompts
 
 # 指定模型
-python scripts/analyze_news_with_llm.py --limit 80 --model llama-4-maverick-r1-109b
+python scripts/analyze_news_with_llm.py --limit 80 --model meta-llama/llama-4-scout-17b-16e-instruct
 ```
 
-**Prompt 版本**：`twstock-news-v6`，包含 20 條標註規則，輸出結構化 JSON：
+**Prompt 版本**：`twstock-news-v7`，含 few-shot 示例與信心校準指引，輸出結構化 JSON：
 
 ```json
 {

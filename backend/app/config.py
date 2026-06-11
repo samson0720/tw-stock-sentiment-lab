@@ -53,7 +53,7 @@ def get_settings() -> Settings:
         ollama_model=_env("OLLAMA_MODEL", "qwen2.5:7b") or "qwen2.5:7b",
         groq_api_key=_env("GROQ_API_KEY"),
         groq_base_url=_env("GROQ_BASE_URL", "https://api.groq.com/openai/v1") or "https://api.groq.com/openai/v1",
-        groq_model=_env("GROQ_MODEL", "llama-4-maverick-17b-128e-instruct") or "llama-4-maverick-17b-128e-instruct",
+        groq_model=_env("GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct") or "meta-llama/llama-4-scout-17b-16e-instruct",
         llm_provider=(_env("LLM_PROVIDER", "groq") or "groq").lower(),
         llm_prompt_version=_env("LLM_PROMPT_VERSION", "twstock-news-v6") or "twstock-news-v6",
         llm_request_sleep_seconds=float(_env("LLM_REQUEST_SLEEP_SECONDS", "2.0") or "2.0"),
