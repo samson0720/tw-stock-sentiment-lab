@@ -22,7 +22,7 @@ def _pending_news(
     end_date: str | None = None,
 ) -> list[dict]:
     prompt_filter = (
-        "a.news_id IS NULL OR a.prompt_version != ? OR a.status = 'failed'"
+        "a.news_id IS NULL OR a.prompt_version != ? OR a.status IN ('failed', 'fallback')"
         if reanalyze_old_prompts
         else "a.news_id IS NULL"
     )

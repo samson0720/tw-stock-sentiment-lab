@@ -66,7 +66,7 @@ def _rules_fallback(title: str, content: str) -> LLMResult:
     }
     raw = json.dumps(data, ensure_ascii=False)
     return LLMResult(
-        status="failed",
+        status="fallback",
         model_name="rules-fallback",
         prompt_version=PROMPT_VERSION,
         raw_response=raw,

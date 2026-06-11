@@ -147,7 +147,7 @@ Yahoo Finance Taiwan 新聞爬取
 | `llama-4-maverick` | 主要使用模型（速度快） |
 | `qwen-qwq-32b` | 備用模型（推理較強） |
 | Prompt version | `twstock-news-v6`（含 20 條規則的結構化 JSON 輸出） |
-| Fallback | LLM 失敗時記錄 `status=failed`，不使用規則偽造結果 |
+| Fallback | LLM API 失敗時記錄 `status=fallback`（rules-fallback），不偽造分析結果 |
 
 ### Frontend
 
@@ -330,7 +330,7 @@ python scripts/analyze_news_with_llm.py --limit 80 --model llama-4-maverick-r1-1
 
 **輸出**：`llm_news_analysis` 資料表
 
-> **重要**：若 LLM API 呼叫失敗，系統會記錄 `status=failed`，**不會**使用規則型 fallback 偽造分析結果。正式報告中的分析僅包含 `status=success` 的資料列。
+> **重要**：若 LLM API 呼叫失敗，系統會記錄 `status=fallback`（model: rules-fallback），**不會**偽造分析結果。正式報告中的分析僅包含 `status=success` 的資料列。
 
 ---
 
@@ -648,7 +648,7 @@ python_data_analysis_final/
 |------|------|
 | 原始新聞 (raw_news) | 1,345 則 |
 | LLM 分析成功 | 847 則 |
-| LLM 分析失敗 | 468 則 |
+| LLM fallback（API 失敗） | 468 則 |
 | 待分析 (pending) | 30 則 |
 | 股票價格資料 | 4,734 筆（44 檔股票） |
 | 新聞報酬對齊資料 | 625 筆 |
@@ -782,7 +782,7 @@ python scripts/create_validation_sample.py --sample-size 100
 
 **Q：Groq API rate limit 怎麼處理？**
 
-系統已內建指數退避（exponential backoff）重試邏輯，遇到 HTTP 429 會自動等待並重試最多 4 次。若仍失敗，記錄為 `status=failed`，不影響已成功的資料。
+系統已內建指數退避（exponential backoff）重試邏輯，遇到 HTTP 429 會自動等待並重試最多 4 次。若仍失敗，記錄為 `status=fallback`，不影響已成功的資料。
 
 **Q：可以不用 Groq，改用本機 LLM 嗎？**
 
