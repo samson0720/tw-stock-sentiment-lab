@@ -101,7 +101,7 @@ def main() -> None:
         else:
             values = (
                 row["id"],
-                "failed",
+                result.status,
                 None,
                 None,
                 None,
