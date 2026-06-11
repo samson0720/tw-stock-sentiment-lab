@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { AlertTriangle, FileText, Newspaper, RefreshCw, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, FileText, Newspaper, RefreshCw, Search, Sparkles } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -15,7 +15,8 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { BacktestRow, DailyBrief, DailySentiment, NewsRow, ReturnRow, StockPriceRow, StockRow, Summary } from "@/lib/api";
+import type { BacktestRow, DailyBrief, DailySentiment, NewsRow, RagCitation, RagResult, ReturnRow, StockPriceRow, StockRow, Summary } from "@/lib/api";
+import { ragQuery } from "@/lib/api";
 
 type Props = {
   summary: Summary;
@@ -188,7 +189,46 @@ function tradingDaysBetween(start: string | null, end: string | null): number | 
   return Math.round(calendarDays * 5 / 7);
 }
 
+function sentimentLabel(s: string | null) {
+  if (s === "positive") return "正向";
+  if (s === "negative") return "負向";
+  if (s === "neutral") return "中立";
+  return "—";
+}
+
+function sentimentClass(s: string | null) {
+  if (s === "positive") return "positive";
+  if (s === "negative") return "negative";
+  return "";
+}
+
 export function Dashboard({ summary, news, daily, returns, backtests, marketPrices, dailyBrief }: Props) {
+  type ChatEntry = { question: string; result: RagResult | null; error: string | null };
+
+  const [ragQ, setRagQ] = useState("");
+  const [ragStock, setRagStock] = useState("");
+  const [ragDateFrom, setRagDateFrom] = useState("");
+  const [ragDateTo, setRagDateTo] = useState("");
+  const [ragLoading, setRagLoading] = useState(false);
+  const [ragHistory, setRagHistory] = useState<ChatEntry[]>([]);
+  const [ragShowFilters, setRagShowFilters] = useState(false);
+
+  async function handleRagSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = ragQ.trim();
+    if (!q) return;
+    setRagQ("");
+    setRagLoading(true);
+    setRagHistory((h) => [...h, { question: q, result: null, error: null }]);
+    try {
+      const result = await ragQuery(q, ragStock || undefined, ragDateFrom || undefined, ragDateTo || undefined);
+      setRagHistory((h) => h.map((e, i) => i === h.length - 1 ? { ...e, result } : e));
+    } catch {
+      setRagHistory((h) => h.map((e, i) => i === h.length - 1 ? { ...e, error: "查詢失敗，請確認後端服務正在執行。" } : e));
+    } finally {
+      setRagLoading(false);
+    }
+  }
   const marketPriceTrend = useMemo(() => {
     const sortedPrices = [...marketPrices].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -595,6 +635,112 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
           <p className="panel-note" style={{ marginTop: "10px" }}>* 樣本不足：交易日數 &lt; 30 日或 Sharpe Ratio &gt; 5，年化指標為短期外推，不具統計意義。</p>
         </section>
       )}
+      <section className="rag-panel">
+        <div className="rag-header">
+          <div className="rag-header-left">
+            <Sparkles size={17} className="rag-sparkle" />
+            <div>
+              <span className="rag-eyebrow">News Q&amp;A</span>
+              <h2>新聞問答</h2>
+            </div>
+          </div>
+          <button
+            className={`rag-filter-toggle ${ragShowFilters ? "active" : ""}`}
+            type="button"
+            onClick={() => setRagShowFilters((v) => !v)}
+          >
+            <Search size={13} />
+            篩選條件
+          </button>
+        </div>
+
+        {ragShowFilters && (
+          <div className="rag-filter-bar">
+            <label>
+              <span>股票代號</span>
+              <input type="text" placeholder="2330" value={ragStock} onChange={(e) => setRagStock(e.target.value)} maxLength={6} />
+            </label>
+            <label>
+              <span>起始日期</span>
+              <input type="date" value={ragDateFrom} onChange={(e) => setRagDateFrom(e.target.value)} />
+            </label>
+            <label>
+              <span>結束日期</span>
+              <input type="date" value={ragDateTo} onChange={(e) => setRagDateTo(e.target.value)} />
+            </label>
+          </div>
+        )}
+
+        <div className="rag-messages">
+          {ragHistory.length === 0 && (
+            <div className="rag-empty">
+              <Sparkles size={28} />
+              <p>試著問：台積電最近有什麼重要消息？</p>
+            </div>
+          )}
+
+          {ragHistory.map((entry, i) => (
+            <div key={i} className="rag-exchange">
+              <div className="rag-bubble user">
+                <p>{entry.question}</p>
+              </div>
+
+              {entry.result === null && entry.error === null && (
+                <div className="rag-bubble ai loading">
+                  <Sparkles size={14} className="rag-ai-icon" />
+                  <span className="rag-dots"><i /><i /><i /></span>
+                </div>
+              )}
+
+              {entry.error && (
+                <div className="rag-bubble ai error">
+                  <Sparkles size={14} className="rag-ai-icon" />
+                  <p>{entry.error}</p>
+                </div>
+              )}
+
+              {entry.result && (
+                <div className="rag-bubble ai">
+                  <Sparkles size={14} className="rag-ai-icon" />
+                  <div className="rag-ai-body">
+                    <p className="rag-answer">{entry.result.answer}</p>
+                    {entry.result.citations.length > 0 && (
+                      <div className="rag-citations">
+                        <span className="rag-citations-label">引用來源</span>
+                        {entry.result.citations.map((c: RagCitation) => (
+                          <article key={c.news_id} className="rag-citation-item">
+                            <div className="rag-citation-meta">
+                              <time>{c.published_at}</time>
+                              {c.target && <strong>{targetLabel(c.target)}</strong>}
+                              <span className={`sentiment ${sentimentClass(c.sentiment)}`}>{sentimentLabel(c.sentiment)}</span>
+                              <span className="rag-score">{(c.score * 100).toFixed(1)}%</span>
+                            </div>
+                            <p>{c.title}</p>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <form className="rag-input-bar" onSubmit={handleRagSubmit}>
+          <input
+            type="text"
+            className="rag-question"
+            placeholder="輸入問題…"
+            value={ragQ}
+            onChange={(e) => setRagQ(e.target.value)}
+            disabled={ragLoading}
+          />
+          <button className="rag-submit" type="submit" disabled={ragLoading || !ragQ.trim()}>
+            <Search size={15} />
+          </button>
+        </form>
+      </section>
     </main>
   );
 }

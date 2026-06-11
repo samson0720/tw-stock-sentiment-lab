@@ -742,6 +742,354 @@ h1 {
 
 /* ── End backtest panel ─────────────────────────────────────────── */
 
+/* ── RAG Q&A panel ──────────────────────────────────────────────── */
+
+.rag-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+  margin-top: 18px;
+  overflow: hidden;
+  animation: panelIn 620ms ease 350ms both;
+  display: flex;
+  flex-direction: column;
+}
+
+.rag-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rag-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rag-sparkle {
+  color: var(--fern);
+  flex: 0 0 auto;
+  animation: slowSpin 8s linear infinite;
+}
+
+.rag-eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.rag-header h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.rag-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sage);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.rag-filter-toggle:hover,
+.rag-filter-toggle.active {
+  background: rgba(74, 124, 89, 0.12);
+  border-color: var(--fern);
+  color: var(--fern);
+}
+
+.rag-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 22px;
+  background: var(--sage);
+  border-bottom: 1px solid var(--line);
+}
+
+.rag-filter-bar label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.rag-filter-bar label input {
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  color: var(--ink);
+  font-size: 13px;
+  padding: 5px 9px;
+  outline: none;
+  background: var(--paper);
+  transition: border-color 150ms ease;
+}
+
+.rag-filter-bar label input:focus {
+  border-color: var(--fern);
+}
+
+.rag-messages {
+  flex: 1;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 120px;
+}
+
+.rag-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  padding: 28px 0;
+}
+
+.rag-empty svg {
+  color: var(--line-strong);
+}
+
+.rag-empty p {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.rag-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rag-bubble {
+  max-width: 86%;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.65;
+  position: relative;
+}
+
+.rag-bubble p {
+  margin: 0;
+}
+
+.rag-bubble.user {
+  align-self: flex-end;
+  background: var(--fern);
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+
+.rag-bubble.ai {
+  align-self: flex-start;
+  background: var(--sage);
+  color: var(--ink);
+  border-bottom-left-radius: 3px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.rag-bubble.ai.error {
+  background: #f8e9e3;
+  color: var(--terracotta);
+}
+
+.rag-bubble.ai.loading {
+  padding: 14px 18px;
+}
+
+.rag-ai-icon {
+  color: var(--fern);
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.rag-bubble.ai.error .rag-ai-icon {
+  color: var(--terracotta);
+}
+
+.rag-ai-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rag-answer {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.rag-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  height: 20px;
+}
+
+.rag-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fern);
+  display: block;
+  animation: ragBounce 1.2s ease-in-out infinite;
+}
+
+.rag-dots i:nth-child(2) { animation-delay: 0.2s; }
+.rag-dots i:nth-child(3) { animation-delay: 0.4s; }
+
+.rag-citations {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rag-citations-label {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.rag-citation-item {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 9px 12px;
+  transition: border-left-color 150ms ease;
+}
+
+.rag-citation-item:hover {
+  border-left-color: var(--fern);
+}
+
+.rag-citation-item p {
+  color: var(--charcoal);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.rag-citation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rag-citation-meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+.rag-citation-meta strong {
+  color: var(--fern);
+  font-size: 12px;
+}
+
+.rag-score {
+  margin-left: auto;
+  background: var(--sage);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+}
+
+.rag-input-bar {
+  display: flex;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(248, 250, 246, 0.8);
+}
+
+.rag-question {
+  flex: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  color: var(--ink);
+  font-size: 14px;
+  padding: 9px 16px;
+  outline: none;
+  background: var(--paper);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.rag-question:focus {
+  border-color: var(--fern);
+  box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.12);
+}
+
+.rag-question:disabled {
+  opacity: 0.6;
+}
+
+.rag-submit {
+  background: var(--fern);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.rag-submit:hover:not(:disabled) {
+  opacity: 0.88;
+  transform: scale(1.06);
+}
+
+.rag-submit:disabled {
+  background: var(--line-strong);
+  cursor: not-allowed;
+}
+
+@keyframes ragBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ── End RAG panel ──────────────────────────────────────────────── */
+
 @keyframes backgroundDrift {
   from {
     background-position: 0 0, 0 0, 0 0;

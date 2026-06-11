@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
+from app.rag.qa import ask as rag_ask
 from app.services.news_service import get_news, list_news
 from app.services.summary_service import (
     backtest_results,
@@ -78,3 +79,16 @@ def latest_daily_brief_endpoint() -> dict:
 @router.get("/daily-brief/history")
 def daily_brief_history_endpoint(limit: int = Query(30, ge=1, le=365)) -> list[dict]:
     return daily_brief_history(limit=limit)
+
+
+@router.get("/rag/query")
+def rag_query(
+    q: str = Query(..., description="問題"),
+    stock: str | None = Query(None, description="股票代號，如 2330"),
+    date_from: str | None = Query(None, description="起始日期 YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="結束日期 YYYY-MM-DD"),
+    top_k: int = Query(5, ge=1, le=20),
+) -> dict:
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="q cannot be empty")
+    return rag_ask(question=q, stock_id=stock, date_from=date_from, date_to=date_to, top_k=top_k)

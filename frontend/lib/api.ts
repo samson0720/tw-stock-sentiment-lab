@@ -1,5 +1,33 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
+export type RagCitation = {
+  news_id: number;
+  title: string;
+  published_at: string;
+  sentiment: string | null;
+  target: string | null;
+  score: number;
+};
+
+export type RagResult = {
+  answer: string;
+  citations: RagCitation[];
+};
+
+export async function ragQuery(
+  q: string,
+  stock?: string,
+  dateFrom?: string,
+  dateTo?: string,
+  topK = 5,
+): Promise<RagResult> {
+  const params = new URLSearchParams({ q, top_k: String(topK) });
+  if (stock) params.set("stock", stock);
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+  return apiGet<RagResult>(`/api/rag/query?${params}`);
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
   if (!response.ok) {

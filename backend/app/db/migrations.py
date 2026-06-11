@@ -211,3 +211,16 @@ def migrate() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_news_type ON llm_news_analysis(news_type)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_aligned_target_date ON aligned_news_returns(target, trading_date)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_sentiment_target_date ON daily_sentiment(target, trading_date)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS news_embeddings (
+                news_id INTEGER PRIMARY KEY,
+                stock_id TEXT,
+                published_at TEXT,
+                embedding BLOB NOT NULL,
+                FOREIGN KEY(news_id) REFERENCES raw_news(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_news_embeddings_stock ON news_embeddings(stock_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_news_embeddings_date ON news_embeddings(published_at)")
