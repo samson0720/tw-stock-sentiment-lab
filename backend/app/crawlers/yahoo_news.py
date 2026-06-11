@@ -20,11 +20,42 @@ QUOTE_NEWS_URLS = [
     "https://tw.stock.yahoo.com/quote/2317.TW/news",
     "https://tw.stock.yahoo.com/quote/2454.TW/news",
     "https://tw.stock.yahoo.com/quote/2303.TW/news",
+    "https://tw.stock.yahoo.com/quote/2308.TW/news",
+    "https://tw.stock.yahoo.com/quote/2382.TW/news",
+    "https://tw.stock.yahoo.com/quote/2344.TW/news",
+    "https://tw.stock.yahoo.com/quote/2327.TW/news",
+    "https://tw.stock.yahoo.com/quote/3711.TW/news",
+    "https://tw.stock.yahoo.com/quote/3037.TW/news",
+    "https://tw.stock.yahoo.com/quote/2337.TW/news",
+    "https://tw.stock.yahoo.com/quote/2408.TW/news",
+    "https://tw.stock.yahoo.com/quote/3231.TW/news",
 ]
 HEADERS = {
     "User-Agent": "Mozilla/5.0 twstock-sentiment-research/0.1",
     "Referer": "https://tw.news.yahoo.com/finance/archive/",
 }
+CONTENT_CUTOFF_MARKERS = (
+    "廣告",
+    "更多FTNN",
+    "更多新聞",
+    "檢視留言",
+    "熱門留言",
+    "相關內容",
+    "延伸閱讀",
+    "推薦閱讀",
+    "看更多",
+    "更多文章",
+    "Yahoo奇摩股市",
+)
+CONTENT_DROP_PATTERNS = (
+    r"^\s*Yahoo奇摩股市.*$",
+    r"^\s*更多新聞.*$",
+    r"^\s*延伸閱讀.*$",
+    r"^\s*推薦閱讀.*$",
+    r"^\s*相關內容.*$",
+    r"^\s*熱門留言.*$",
+    r"^\s*檢視留言.*$",
+)
 DEFAULT_HISTORICAL_SEARCH_TERMS = [
     "台股",
     "台股 0050",
@@ -36,8 +67,13 @@ DEFAULT_HISTORICAL_SEARCH_TERMS = [
     "聯電 2303",
     "半導體 台股",
     "AI 台股 台積電",
+    "廣達 2382",
+    "日月光 3711",
+    "欣興 3037",
+    "南亞科 2408",
+    "台達電 2308",
 ]
-DEFAULT_FINANCE_API_KEYWORDS = ["2330", "0050", "2317", "2454", "2303", "TAIEX", "ETF"]
+DEFAULT_FINANCE_API_KEYWORDS = ["2330", "0050", "2317", "2454", "2303", "TAIEX", "ETF", "2308", "2382", "2344", "2327", "3711", "3037", "2408"]
 
 
 @dataclass
@@ -52,6 +88,18 @@ class NewsItem:
 
 def clean_text(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
+
+
+def clean_news_content(content: str) -> str:
+    text = "\n".join(line.strip() for line in (content or "").splitlines() if line.strip())
+    if not text:
+        return ""
+    marker_positions = [text.find(marker) for marker in CONTENT_CUTOFF_MARKERS if marker in text]
+    if marker_positions:
+        text = text[: min(marker_positions)]
+    for pattern in CONTENT_DROP_PATTERNS:
+        text = re.sub(pattern, "", text, flags=re.MULTILINE)
+    return clean_text(text)
 
 
 def parse_rss_datetime(value: str | None) -> str | None:
@@ -120,7 +168,7 @@ def extract_article_content(soup: BeautifulSoup) -> str:
             candidates.append(node.get_text(" ", strip=True))
     if not candidates:
         candidates.append(" ".join(p.get_text(" ", strip=True) for p in soup.find_all("p")))
-    return clean_text(max(candidates, key=len, default=""))
+    return clean_news_content(max(candidates, key=len, default=""))
 
 
 def fetch_article(url: str, timeout: int = 20) -> NewsItem | None:
@@ -242,7 +290,7 @@ def fetch_finance_stream_page(start: int = 0, count: int = 50, keyword: str | No
         url_data = row.get("canonicalUrl") or {}
         url = normalize_news_url(str(url_data.get("url") or ""))
         title = clean_text(str(row.get("title") or ""))
-        content = clean_text(str(row.get("summary") or row.get("description") or ""))
+        content = clean_news_content(str(row.get("summary") or row.get("description") or ""))
         published_at = parse_any_datetime(str(row.get("pubDate") or ""))
         if not url or not title or not content or not published_at:
             continue

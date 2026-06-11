@@ -92,7 +92,13 @@ def _planned_price_targets() -> list[str]:
             target_items = [{"target": row["target"], "target_type": row["news_type"]}]
         for item in target_items:
             if isinstance(item, dict):
-                targets.add(normalize_target(str(item.get("target_type") or row["news_type"]), item.get("target") or row["target"]))
+                targets.add(
+                    normalize_target(
+                        str(item.get("target_type") or row["news_type"]),
+                        item.get("target") or row["target"],
+                        item.get("target_name"),
+                    )
+                )
     stock_ids = {str(t) for t in targets if t and str(t).isdigit() and len(str(t)) == 4}
     return sorted(required | stock_ids)
 

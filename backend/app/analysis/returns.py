@@ -68,7 +68,7 @@ def build_aligned_returns() -> int:
                 continue
             target_news_type = str(item.get("target_type") or row["news_type"])
             raw_target = item.get("target") or row["target"]
-            target = normalize_target(target_news_type, raw_target)
+            target = normalize_target(target_news_type, raw_target, item.get("target_name"))
             if not target or target not in by_stock:
                 continue
             price_df = by_stock[target]

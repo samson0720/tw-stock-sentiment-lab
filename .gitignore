@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
+*.pyo
 .env
 .DS_Store
 node_modules/
@@ -9,6 +10,8 @@ out/
 anthropics-skills/
 backend/data/*.db
 backend/data/*.db-*
+backend/data/*.db-wal
+backend/data/*.db-shm
 backend/data/*.json
 outputs/figures/*
 outputs/tables/*
@@ -16,3 +19,8 @@ outputs/reports/*
 !outputs/figures/.gitkeep
 !outputs/tables/.gitkeep
 !outputs/reports/.gitkeep
+.codex-logs/
+final_test/
+*.ipynb_checkpoints/
+.ipynb_checkpoints/
+frontend/tsconfig.tsbuildinfo

@@ -49,7 +49,11 @@ def main() -> None:
             if not isinstance(item, dict):
                 continue
             original_target = item.get("target") or row["original_target"]
-            normalized_target = normalize_target(str(item.get("target_type") or row["news_type"]), original_target)
+            normalized_target = normalize_target(
+                str(item.get("target_type") or row["news_type"]),
+                original_target,
+                item.get("target_name"),
+            )
             if normalized_target and normalized_target in price_targets:
                 continue
             records.append(

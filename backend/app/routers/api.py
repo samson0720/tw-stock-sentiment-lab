@@ -58,7 +58,7 @@ def prices_endpoint(stock_id: str, limit: int = Query(500, ge=1, le=5000)) -> li
 
 
 @router.get("/analysis/returns")
-def returns_endpoint(limit: int = Query(500, ge=1, le=5000)) -> list[dict]:
+def returns_endpoint(limit: int = Query(2000, ge=1, le=10000)) -> list[dict]:
     return returns_analysis(limit=limit)
 
 

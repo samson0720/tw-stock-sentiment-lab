@@ -1,9 +1,24 @@
 import re
 
+from app.analysis.targets import normalize_target_record
+
 
 ALLOWED_TARGET_TYPES = {"stock", "etf", "index", "industry", "commodity", "macro", "region", "company_foreign", "other"}
 MULTI_TARGET_MARKERS = ("這幾檔", "這2檔", "這3檔", "這4檔", "這5檔", "多檔", "族群", "概念股", "買超前十大", "賣超前十大")
 STOCK_NAME_CHARS = r"[\u4e00-\u9fffA-Za-z0-9]{2,12}"
+AI_CHIP_TARGETS = {"AI晶片", "AI晶片族群"}
+AI_CHIP_TERMS = ("晶片", "GPU", "半導體", "算力晶片", "AI CHIP", "AI晶片", "先進晶片")
+AI_APPLICATION_TARGETS = (
+    ("AI agent", "AI agent"),
+    ("AI代理", "AI agent"),
+    ("AI雲端", "AI雲端服務"),
+    ("雲端服務", "AI雲端服務"),
+    ("智慧客服", "智慧客服"),
+    ("AI演算法", "AI演算法"),
+    ("演算法", "AI演算法"),
+    ("資料中心節能", "資料中心節能"),
+    ("節能", "資料中心節能"),
+)
 
 
 def sentiment_score(sentiment: str | None, confidence: float | None) -> float:
@@ -24,28 +39,47 @@ def _normalized_confidence(value: object) -> float:
     return max(0.0, min(1.0, confidence))
 
 
-def _normalized_target_item(data: dict, default_sentiment: str, default_confidence: float) -> dict | None:
+def _normalize_industry_target(target: str | None, context: str) -> str | None:
+    if target not in AI_CHIP_TARGETS:
+        return target
+    normalized_context = context.upper()
+    if any(term.upper() in normalized_context for term in AI_CHIP_TERMS):
+        return target
+    for marker, replacement in AI_APPLICATION_TARGETS:
+        if marker.upper() in normalized_context:
+            return replacement
+    return "AI應用"
+
+
+def _normalized_target_item(
+    data: dict,
+    default_sentiment: str,
+    default_confidence: float,
+    context: str | None = None,
+) -> dict | None:
     target = str(data.get("target") or "").strip()
     if not target:
         return None
     target_type = str(data.get("target_type") or "other").lower().strip()
     if target_type not in ALLOWED_TARGET_TYPES:
         target_type = "other"
-    if target_type == "stock" and not re.fullmatch(r"\d{4}", target):
-        target_type = "company_foreign"
+    target_name = str(data.get("target_name") or "").strip()
+    if not target_name and target.upper() == "KY" and context:
+        target_name = context
+    target_type, target, target_name = normalize_target_record(target_type, target, target_name)
     sentiment = _normalized_sentiment(data.get("sentiment") or default_sentiment)
     confidence = _normalized_confidence(data.get("confidence", default_confidence))
     return {
         "target_type": target_type,
         "target": target,
-        "target_name": str(data.get("target_name") or "").strip(),
+        "target_name": target_name,
         "sentiment": sentiment,
         "confidence": confidence,
         "reason": str(data.get("reason") or "")[:40],
     }
 
 
-def normalize_analysis(data: dict) -> dict:
+def normalize_analysis(data: dict, context: str | None = None) -> dict:
     news_type = str(data.get("news_type") or "other").lower().strip()
     if news_type == "ignore":
         news_type = "other"
@@ -58,16 +92,27 @@ def normalize_analysis(data: dict) -> dict:
     confidence = _normalized_confidence(data.get("confidence", 0.0))
     target = str(data.get("target") or "").strip() or None
     target_name = str(data.get("target_name") or "").strip()
-    if target_type == "stock" and target and not re.fullmatch(r"\d{4}", target):
-        target_type = "company_foreign"
+    if target and not target_name and target.upper() == "KY" and context:
+        target_name = context
+    if target:
+        target_type, target, target_name = normalize_target_record(target_type, target, target_name)
+    if target_type == "industry":
+        text_context = " ".join(str(part or "") for part in (target_name, data.get("reason"), context))
+        target = _normalize_industry_target(target, text_context)
 
     targets = []
     raw_targets = data.get("targets")
     if isinstance(raw_targets, list):
         for item in raw_targets:
             if isinstance(item, dict):
-                normalized = _normalized_target_item(item, sentiment, confidence)
+                normalized = _normalized_target_item(item, sentiment, confidence, context=context)
                 if normalized:
+                    if normalized["target_type"] == "industry":
+                        text_context = " ".join(
+                            str(part or "")
+                            for part in (normalized["target_name"], normalized["reason"], context)
+                        )
+                        normalized["target"] = _normalize_industry_target(normalized["target"], text_context)
                     targets.append(normalized)
     if target and not any(item["target"] == target for item in targets):
         targets.insert(
@@ -92,6 +137,7 @@ def normalize_analysis(data: dict) -> dict:
         target = None
         target_name = ""
         targets = []
+        sentiment = "neutral"
     elif target is None:
         target_type = "other"
     targets = targets[:5]

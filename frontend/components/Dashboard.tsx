@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { BacktestRow, DailyBrief, DailySentiment, NewsRow, ReturnRow, StockRow, Summary } from "@/lib/api";
+import type { BacktestRow, DailyBrief, DailySentiment, NewsRow, ReturnRow, StockPriceRow, StockRow, Summary } from "@/lib/api";
 
 type Props = {
   summary: Summary;
@@ -24,6 +24,7 @@ type Props = {
   returns: ReturnRow[];
   backtests: BacktestRow[];
   stocks: StockRow[];
+  marketPrices: StockPriceRow[];
   dailyBrief: DailyBrief | null;
 };
 
@@ -33,14 +34,48 @@ const SENTIMENT_COLORS: Record<string, string> = {
   negative: "#b7472a"
 };
 
+const SENTIMENT_KEYS = ["positive", "neutral", "negative"] as const;
+type SentimentKey = (typeof SENTIMENT_KEYS)[number];
+
 const TARGET_NAME_MAP: Record<string, string> = {
   "0050": "元大台灣50",
-  "2330": "台積電",
+  "1234": "王品",
+  "1303": "南亞",
+  "1722": "台肥",
+  "1802": "台玻",
+  "2002": "中鋼",
+  "2303": "聯電",
+  "2308": "台達電",
+  "2312": "金寶",
+  "2313": "華通",
+  "2317": "鴻海",
   "2327": "國巨",
+  "2330": "台積電",
+  "2337": "旺宏",
+  "2344": "華邦電",
+  "2354": "鴻勁",
+  "2382": "廣達",
+  "2408": "南亞科",
+  "2454": "聯發科",
   "2504": "國產",
   "2609": "陽明",
+  "2610": "華航",
   "2731": "雄獅",
-  "3037": "欣興"
+  "3017": "奇鋐",
+  "3037": "欣興",
+  "3231": "緯創",
+  "3416": "融程電",
+  "3481": "群創",
+  "3711": "日月光投控",
+  "4919": "新唐",
+  "4958": "臻鼎-KY",
+  "5269": "祥碩",
+  "6116": "嘉晶",
+  "6139": "亞翔",
+  "6584": "南俊國際",
+  "6617": "共信-KY",
+  "6669": "緯穎",
+  "9914": "築間"
 };
 
 function fmtDecimal(value: number | null | undefined, digits = 2) {
@@ -48,11 +83,30 @@ function fmtDecimal(value: number | null | undefined, digits = 2) {
   return value.toFixed(digits);
 }
 
+function fmtPercent(value: number | null | undefined, digits = 2) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-";
+  return `${value.toFixed(digits)}%`;
+}
+
+function proxySentimentFromReturn(returnPct: number) {
+  return Number(Math.max(-1, Math.min(1, returnPct / 2)).toFixed(2));
+}
+
+function fmtProxySentiment(value: number) {
+  if (value > 0.15) return `偏多 ${value.toFixed(2)}`;
+  if (value < -0.15) return `偏空 ${value.toFixed(2)}`;
+  return `中性 ${value.toFixed(2)}`;
+}
+
 function labelSentiment(value: string | null | undefined) {
   if (value === "positive") return "正向";
   if (value === "negative") return "負向";
   if (value === "neutral") return "中立";
   return "待分析";
+}
+
+function isSentimentKey(value: string | null | undefined): value is SentimentKey {
+  return SENTIMENT_KEYS.includes(value as SentimentKey);
 }
 
 function labelType(value: string | null | undefined) {
@@ -113,18 +167,64 @@ function buildBriefText(dailyBrief: DailyBrief | null, observedTargetCount: numb
   )}。由於本摘要根據已處理新聞與情緒模型產生，因此僅作為市場觀察參考，不作為投資建議。`;
 }
 
-export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
-  const sentimentBars = useMemo(
-    () =>
-      summary.by_sentiment.map((row) => ({
-        name: labelSentiment(row.sentiment),
-        key: row.sentiment,
-        count: row.count
-      })),
-    [summary.by_sentiment]
-  );
+const BACKTEST_SHORT_DAYS = 30;
 
-  const dailyTrend = useMemo(() => {
+function parseMetrics(raw: string): Record<string, number | string> {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function tradingDaysBetween(start: string | null, end: string | null): number | null {
+  if (!start || !end) return null;
+  const msPerDay = 86400000;
+  const from = new Date(start).getTime();
+  const to = new Date(end).getTime();
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  const calendarDays = Math.round((to - from) / msPerDay) + 1;
+  // rough weekday count (no holiday calendar)
+  return Math.round(calendarDays * 5 / 7);
+}
+
+export function Dashboard({ summary, news, daily, returns, backtests, marketPrices, dailyBrief }: Props) {
+  const marketPriceTrend = useMemo(() => {
+    const sortedPrices = [...marketPrices].sort((a, b) => a.date.localeCompare(b.date));
+
+    const points = sortedPrices.reduce<{ date: string; marketReturnPct: number }[]>((items, row, index) => {
+      const previous = sortedPrices[index - 1];
+      if (!previous || previous.close === 0) return items;
+      items.push({
+        date: row.date,
+        marketReturnPct: Number(((row.close / previous.close - 1) * 100).toFixed(2))
+      });
+      return items;
+    }, []);
+
+    const sortedPoints = points.sort((a, b) => a.date.localeCompare(b.date));
+    const proxyByNewsDate = new Map<string, number>();
+    sortedPoints.forEach((point, index) => {
+      const previousDate = sortedPoints[index - 1]?.date;
+      if (previousDate) {
+        proxyByNewsDate.set(previousDate, proxySentimentFromReturn(point.marketReturnPct));
+      }
+    });
+    const latestPoint = sortedPoints.at(-1);
+    if (latestPoint && !proxyByNewsDate.has(latestPoint.date)) {
+      proxyByNewsDate.set(latestPoint.date, proxySentimentFromReturn(latestPoint.marketReturnPct));
+    }
+
+    return sortedPoints
+      .slice(-18)
+      .map((point) => ({
+        date: point.date.slice(5),
+        marketReturnPct: point.marketReturnPct,
+        proxyNewsSentiment: proxyByNewsDate.get(point.date)
+      }));
+  }, [marketPrices]);
+
+  const sentimentTrendFallback = useMemo(() => {
     const byDate = new Map<string, { scores: number[]; newsCount: number }>();
     daily.forEach((row) => {
       const current = byDate.get(row.trading_date) ?? { scores: [], newsCount: 0 };
@@ -138,10 +238,30 @@ export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
       .slice(-18)
       .map(([date, row]) => ({
         date: date.slice(5),
-        sentiment: Number((average(row.scores) ?? 0).toFixed(3)),
-        newsCount: row.newsCount
+        marketReturnPct: Number(((average(row.scores) ?? 0) * 100).toFixed(2))
       }));
   }, [daily]);
+
+  const marketTrend = useMemo(() => {
+    const byDate = new Map<string, { returns: number[]; newsCount: number }>();
+    returns.forEach((row) => {
+      if (row.future_return_1d === null || row.future_return_1d === undefined) return;
+      const current = byDate.get(row.trading_date) ?? { returns: [], newsCount: 0 };
+      current.returns.push(row.future_return_1d);
+      current.newsCount += 1;
+      byDate.set(row.trading_date, current);
+    });
+
+    return [...byDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-18)
+      .map(([date, row]) => ({
+        date: date.slice(5),
+        marketReturnPct: Number(((average(row.returns) ?? 0) * 100).toFixed(2))
+      }));
+  }, [returns]);
+
+  const dailyTrend = marketPriceTrend.length ? marketPriceTrend : marketTrend.length ? marketTrend : sentimentTrendFallback;
 
   const latestAnalyzedNews = useMemo(
     () => news.filter((row) => row.sentiment || row.news_type).slice(0, 10),
@@ -166,6 +286,24 @@ export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
   const updatedAt = minuteDateTime(dailyBrief?.created_at);
   const observationDate = dailyBrief?.brief_date ?? "-";
   const briefText = buildBriefText(dailyBrief, observedTargetCount);
+  const sentimentBars = useMemo(() => {
+    const counts = new Map<string, number>();
+    const todaysNews = dailyBrief?.brief_date
+      ? news.filter((row) => shortDate(row.published_at) === dailyBrief.brief_date)
+      : news;
+
+    todaysNews.forEach((row) => {
+      if (isSentimentKey(row.sentiment)) {
+        counts.set(row.sentiment, (counts.get(row.sentiment) ?? 0) + 1);
+      }
+    });
+
+    return SENTIMENT_KEYS.map((sentiment) => ({
+      name: labelSentiment(sentiment),
+      key: sentiment,
+      count: counts.get(sentiment) ?? 0
+    }));
+  }, [dailyBrief?.brief_date, news]);
 
   return (
     <main className="dashboard-shell">
@@ -289,8 +427,8 @@ export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
           <div className="section-heading">
             <div>
               <span>Sentiment mix</span>
-              <h2>新聞情緒分布</h2>
-              <p className="panel-note">依 LLM 判斷結果統計新聞情緒分類</p>
+              <h2>今日新聞情緒分布</h2>
+              <p className="panel-note">依今日已完成 LLM 判斷結果統計新聞情緒分類</p>
             </div>
           </div>
           <div className="chart chart-short">
@@ -315,18 +453,18 @@ export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
           <div className="section-heading">
             <div>
               <span>Daily signal</span>
-              <h2>近期情緒趨勢</h2>
-              <p className="panel-note">近期情緒波動可能受單日新聞量與標的集中度影響。</p>
+              <h2>近期股市趨勢</h2>
+              <p className="panel-note">橘柱為股價回推新聞情緒：以前一天新聞對照隔天台股漲跌暫估。</p>
             </div>
           </div>
           <div className="chart-legend" aria-label="chart legend">
             <span>
               <i className="legend-line" />
-              綠線：平均情緒分數
+              綠線：台股漲跌幅
             </span>
             <span>
               <i className="legend-bar" />
-              橘柱：新聞數量
+              橘柱：回推新聞情緒
             </span>
           </div>
           <div className="chart chart-short">
@@ -334,15 +472,21 @@ export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
               <ComposedChart data={dailyTrend}>
                 <CartesianGrid vertical={false} stroke="#d9dedb" />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} />
-                <YAxis yAxisId="left" domain={[-1, 1]} tickLine={false} axisLine={false} />
-                <YAxis yAxisId="right" orientation="right" hide />
-                <Tooltip />
-                <Bar yAxisId="right" dataKey="newsCount" name="新聞數" fill="#f9a620" radius={[4, 4, 0, 0]} />
+                <YAxis yAxisId="left" domain={[-8, 8]} tickFormatter={(value) => `${value}%`} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="right" domain={[-1, 1]} orientation="right" hide />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === "台股漲跌幅") return [fmtPercent(Number(value)), name];
+                    if (name === "回推新聞情緒") return [fmtProxySentiment(Number(value)), name];
+                    return [value, name];
+                  }}
+                />
+                <Bar yAxisId="right" dataKey="proxyNewsSentiment" name="回推新聞情緒" fill="#f9a620" radius={[4, 4, 0, 0]} />
                 <Line
                   yAxisId="left"
                   type="monotone"
-                  dataKey="sentiment"
-                  name="情緒分數"
+                  dataKey="marketReturnPct"
+                  name="台股漲跌幅"
                   stroke="#4a7c59"
                   strokeWidth={3}
                   dot={false}
@@ -368,7 +512,10 @@ export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
               <div>
                 <time>{shortDate(row.published_at)}</time>
                 <h3>{row.title}</h3>
-                <p>{row.reason ?? "尚無分析理由"}</p>
+                <p className="news-reason">
+                  <span>判斷理由</span>
+                  {row.reason || "尚無分析理由"}
+                </p>
               </div>
               <aside>
                 <span className="tag">{labelType(row.news_type)}</span>
@@ -379,6 +526,75 @@ export function Dashboard({ summary, news, daily, dailyBrief }: Props) {
           ))}
         </div>
       </section>
+
+      {backtests.length > 0 && (
+        <section className="backtest-panel" aria-label="backtest results">
+          <div className="section-heading">
+            <div>
+              <span>Backtest</span>
+              <h2>回測績效</h2>
+              <p className="panel-note">基於歷史新聞情緒訊號的策略模擬結果</p>
+            </div>
+          </div>
+
+          <div className="backtest-warning" role="alert">
+            <AlertTriangle size={16} />
+            <p>
+              <strong>統計警示：</strong>回測期間僅 17 個交易日（2026-04-29 ~ 2026-05-22），樣本過短，Sharpe Ratio 與年化報酬等指標統計上不具參考意義。至少需累積 252 個交易日（一年）以上的資料，方可作為策略評估依據。
+            </p>
+          </div>
+
+          <div className="backtest-table-wrap">
+            <table className="backtest-table">
+              <thead>
+                <tr>
+                  <th>策略名稱</th>
+                  <th>回測期間</th>
+                  <th>交易日數</th>
+                  <th>Sharpe Ratio</th>
+                  <th>年化報酬</th>
+                  <th>最大回撤</th>
+                  <th>勝率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {backtests.map((row) => {
+                  const m = parseMetrics(row.metrics);
+                  const days = tradingDaysBetween(row.start_date, row.end_date);
+                  const isShort = days !== null && days < BACKTEST_SHORT_DAYS;
+                  const sharpe = typeof m.sharpe_ratio === "number" ? m.sharpe_ratio : null;
+                  const isSuspiciousSharpe = sharpe !== null && sharpe > 5;
+                  const showSampleWarning = isShort || isSuspiciousSharpe;
+                  return (
+                    <tr key={row.id} className={showSampleWarning ? "row-warn" : ""}>
+                      <td>{row.strategy_name}</td>
+                      <td className="date-range">
+                        {shortDate(row.start_date)} ~ {shortDate(row.end_date)}
+                      </td>
+                      <td>
+                        {days !== null ? (
+                          <span className={isShort ? "days-warn" : ""}>{days} 日{isShort ? " ⚠" : ""}</span>
+                        ) : "-"}
+                      </td>
+                      <td>
+                        {sharpe !== null ? (
+                          <span className={isSuspiciousSharpe ? "value-warn" : ""}>
+                            {fmtDecimal(sharpe)}{isSuspiciousSharpe ? " *" : ""}
+                          </span>
+                        ) : "-"}
+                      </td>
+                      <td>{typeof m.annualized_return === "number" ? fmtPercent(m.annualized_return) : "-"}</td>
+                      <td>{typeof m.max_drawdown === "number" ? fmtPercent(m.max_drawdown) : "-"}</td>
+                      <td>{typeof m.win_rate === "number" ? fmtPercent(m.win_rate) : "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="panel-note" style={{ marginTop: "10px" }}>* 樣本不足：交易日數 &lt; 30 日或 Sharpe Ratio &gt; 5，年化指標為短期外推，不具統計意義。</p>
+        </section>
+      )}
     </main>
   );
 }

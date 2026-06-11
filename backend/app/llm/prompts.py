@@ -1,16 +1,12 @@
 import json
 
+from app.crawlers.yahoo_news import clean_news_content
 
 PROMPT_VERSION = "twstock-news-v6"
 
-CONTENT_CUTOFF_MARKERS = ("廣告", "更多FTNN", "更多新聞", "檢視留言", "熱門留言", "相關內容")
-
 
 def full_news_text(content: str) -> str:
-    text = "\n".join(line.strip() for line in content.splitlines() if line.strip())
-    marker_positions = [text.find(marker) for marker in CONTENT_CUTOFF_MARKERS if marker in text]
-    if marker_positions:
-        text = text[: min(marker_positions)].strip()
+    text = clean_news_content(content)
     if len(text) > 5000:
         text = f"{text[:2500]}\n[...]\n{text[-1500:]}"
     return text

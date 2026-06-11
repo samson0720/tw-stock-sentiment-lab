@@ -70,7 +70,9 @@ def _analysis_rows(brief_date: str) -> list[dict]:
                 n.title,
                 substr(COALESCE(n.published_at, n.crawled_at), 1, 10) AS news_date,
                 a.news_type,
+                a.target_type,
                 a.target,
+                a.target_name,
                 a.sentiment,
                 a.sentiment_score,
                 a.confidence,
@@ -84,6 +86,58 @@ def _analysis_rows(brief_date: str) -> list[dict]:
             (brief_date,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def _fallback_daily_rows_from_analysis(analysis_rows: list[dict], brief_date: str) -> list[dict]:
+    grouped: dict[str, dict] = {}
+    for row in analysis_rows:
+        target = normalize_target(row["news_type"], row["target"], row.get("target_name"))
+        if not target:
+            continue
+        sentiment_score = float(row["sentiment_score"] or 0.0)
+        confidence = float(row["confidence"] or 0.0)
+        sentiment = row["sentiment"]
+        current = grouped.setdefault(
+            target,
+            {
+                "target": target,
+                "trading_date": brief_date,
+                "scores": [],
+                "confidences": [],
+                "positive_count": 0,
+                "neutral_count": 0,
+                "negative_count": 0,
+            },
+        )
+        current["scores"].append(sentiment_score)
+        current["confidences"].append(confidence)
+        if sentiment == "positive":
+            current["positive_count"] += 1
+        elif sentiment == "negative":
+            current["negative_count"] += 1
+        else:
+            current["neutral_count"] += 1
+
+    daily_rows: list[dict] = []
+    for target, row in grouped.items():
+        news_count = len(row["scores"])
+        sentiment_avg = sum(row["scores"]) / news_count if news_count else 0.0
+        daily_rows.append(
+            {
+                "target": target,
+                "trading_date": brief_date,
+                "news_count": news_count,
+                "sentiment_avg": sentiment_avg,
+                "sentiment_ma5": sentiment_avg,
+                "positive_count": row["positive_count"],
+                "neutral_count": row["neutral_count"],
+                "negative_count": row["negative_count"],
+                "positive_ratio": row["positive_count"] / news_count if news_count else 0.0,
+                "negative_ratio": row["negative_count"] / news_count if news_count else 0.0,
+                "avg_confidence": sum(row["confidences"]) / news_count if news_count else 0.0,
+            }
+        )
+    return daily_rows
 
 
 def _target_payload(row: dict) -> dict:
@@ -174,6 +228,8 @@ def generate_daily_brief(brief_date: str | None = None) -> dict:
     selected_date = brief_date or _latest_brief_date()
     daily_rows = _daily_rows(selected_date)
     analysis_rows = _analysis_rows(selected_date)
+    if not daily_rows and analysis_rows:
+        daily_rows = _fallback_daily_rows_from_analysis(analysis_rows, selected_date)
 
     market_row = next((row for row in daily_rows if row["target"] == "0050"), None)
     total_news_count = sum(int(row["news_count"] or 0) for row in daily_rows)

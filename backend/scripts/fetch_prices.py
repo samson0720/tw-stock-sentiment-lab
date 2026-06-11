@@ -1,6 +1,7 @@
 from pathlib import Path
 import argparse
 import json
+import re
 import sys
 
 import pandas as pd
@@ -14,7 +15,7 @@ from app.db.database import connect
 from app.services.price_service import fetch_finmind_prices, fetch_yahoo_chart_prices, fetch_yfinance_prices
 
 
-REQUIRED_STOCK_IDS = {"0050", "2330", "2317", "2454", "2303", "3481"}
+REQUIRED_STOCK_IDS = {"0050", "2330", "2317", "2454", "2303", "3481", "00878"}
 
 
 def _targets_from_db() -> list[str]:
@@ -38,8 +39,14 @@ def _targets_from_db() -> list[str]:
             target_items = [{"target": row["target"], "target_type": row["news_type"]}]
         for item in target_items:
             if isinstance(item, dict):
-                targets.add(normalize_target(str(item.get("target_type") or row["news_type"]), item.get("target") or row["target"]))
-    stock_ids = {t for t in targets if t and str(t).isdigit() and len(str(t)) == 4}
+                targets.add(
+                    normalize_target(
+                        str(item.get("target_type") or row["news_type"]),
+                        item.get("target") or row["target"],
+                        item.get("target_name"),
+                    )
+                )
+    stock_ids = {t for t in targets if t and re.match(r"^\d{4,6}[A-Z]?$", str(t))}
     return sorted(REQUIRED_STOCK_IDS | stock_ids)
 
 

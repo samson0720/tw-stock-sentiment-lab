@@ -70,6 +70,17 @@ export type StockRow = {
   rows: number;
 };
 
+export type StockPriceRow = {
+  stock_id: string;
+  date: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number;
+  volume: number | null;
+  source: string;
+};
+
 export type DailyBriefTarget = {
   target: string;
   sentiment_score: number | null;
