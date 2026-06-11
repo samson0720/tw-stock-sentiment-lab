@@ -29,6 +29,7 @@ def _migrate_llm_news_analysis(conn) -> None:
         or "'macro'" not in table_sql
         or "'region'" not in table_sql
         or "'other'" not in table_sql
+        or "'fallback'" not in table_sql
     )
     if not needs_rebuild:
         return
@@ -38,7 +39,7 @@ def _migrate_llm_news_analysis(conn) -> None:
         """
         CREATE TABLE llm_news_analysis (
             news_id INTEGER PRIMARY KEY,
-            status TEXT NOT NULL DEFAULT 'success' CHECK(status IN ('success', 'failed')),
+            status TEXT NOT NULL DEFAULT 'success' CHECK(status IN ('success', 'failed', 'fallback')),
             news_type TEXT CHECK(news_type IN ('stock', 'etf', 'market', 'industry', 'macro', 'other')),
             target_type TEXT CHECK(target_type IN ('stock', 'etf', 'index', 'industry', 'commodity', 'macro', 'region', 'company_foreign', 'other')),
             target TEXT,
@@ -171,7 +172,7 @@ def migrate() -> None:
         conn.execute(
             """
             UPDATE llm_news_analysis
-            SET status = 'failed',
+            SET status = 'fallback',
                 news_type = NULL,
                 target_type = NULL,
                 target = NULL,
