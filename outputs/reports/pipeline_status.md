@@ -13,12 +13,12 @@ FastAPI and frontend do not call Groq; LLM analysis remains limited to `backend/
 |---|---:|
 | raw_news | 1,345 |
 | llm_news_analysis total | 1,315 |
-| llm_news_analysis success | 847 |
-| llm_news_analysis failed | 468 |
+| llm_news_analysis success | 916 |
+| llm_news_analysis failed | 0 |
 | llm_news_analysis pending | 30 |
 | stock_prices | 4,734 |
-| aligned_news_returns | 625 |
-| daily_sentiment | 143 |
+| aligned_news_returns | 634 |
+| daily_sentiment | 137 |
 | human_validation | 0 |
 | backtest_results | 1 |
 
@@ -32,54 +32,58 @@ FastAPI and frontend do not call Groq; LLM analysis remains limited to `backend/
 
 | Value | Rows |
 |---|---:|
-| NULL | 468 |
-| stock | 303 |
-| market | 274 |
-| industry | 150 |
-| other | 65 |
-| macro | 47 |
-| etf | 8 |
+| NULL | 399 |
+| stock | 335 |
+| market | 281 |
+| industry | 140 |
+| other | 82 |
+| macro | 65 |
+| etf | 13 |
 
 ## LLM Sentiment Distribution
 
 | Value | Rows |
 |---|---:|
-| NULL | 468 |
-| positive | 403 |
-| neutral | 293 |
-| negative | 151 |
+| positive | 425 |
+| NULL | 399 |
+| neutral | 327 |
+| negative | 164 |
 
 ## LLM Target Distribution Top 40
 
 | Value | Rows |
 |---|---:|
-| market / TAIEX | 133 |
-| stock / 2330 | 111 |
-| other / NULL | 65 |
-| industry / AI晶片 | 33 |
+| market / TAIEX | 141 |
+| stock / 2330 | 120 |
+| other / NULL | 82 |
+| market / 0050 | 33 |
 | market / TAIEX/0050 | 33 |
-| market / 0050 | 32 |
-| market / 台灣 | 20 |
+| industry / AI晶片 | 32 |
 | industry / AI | 15 |
 | industry / 半導體 | 15 |
+| market / 台灣 | 15 |
 | stock / 2454 | 15 |
-| industry / AI應用 | 11 |
-| macro / 美國 | 10 |
 | stock / 半導體 | 10 |
-| macro / 台灣 | 9 |
+| industry / AI應用 | 8 |
+| macro / NULL | 8 |
+| macro / 美國 | 8 |
 | industry / NVIDIA | 6 |
 | market / AI | 6 |
-| stock / NULL | 6 |
+| macro / 台灣 | 5 |
 | stock / 2303 | 5 |
+| stock / 2327 | 5 |
+| stock / NULL | 5 |
 | industry / 台積電 | 4 |
-| industry / 記憶體 | 4 |
-| macro / 中國 | 4 |
+| market / NASDAQ | 4 |
 | market / 半導體 | 4 |
-| stock / 2327 | 4 |
+| etf / 0050 | 3 |
 | industry / TSMC Global Ltd. | 3 |
+| industry / 記憶體 | 3 |
+| macro / 中國 | 3 |
+| macro / 油價 | 3 |
+| macro / 美股 | 3 |
+| macro / 金價 | 3 |
 | market / 2330 | 3 |
-| market / AI應用 | 3 |
-| market / 亞洲 | 3 |
 | market / 台股 | 3 |
 | stock / 00981A | 3 |
 | stock / 2408 | 3 |
@@ -87,20 +91,16 @@ FastAPI and frontend do not call Groq; LLM analysis remains limited to `backend/
 | stock / 3711 | 3 |
 | stock / 4958 | 3 |
 | stock / AI晶片 | 3 |
-| etf / 0050 | 2 |
 | industry / 2330 | 2 |
 | industry / AI agent | 2 |
-| industry / Arm | 2 |
-| industry / ETF | 2 |
-| industry / NULL | 2 |
 
 ## Future Return Coverage
 
 | Field | Non-null Rows | Non-null Ratio |
 |---|---:|---:|
-| future_return_1d | 599 | 95.8% |
-| future_return_3d | 524 | 83.8% |
-| future_return_5d | 443 | 70.9% |
+| future_return_1d | 599 | 94.5% |
+| future_return_3d | 524 | 82.6% |
+| future_return_5d | 443 | 69.9% |
 
 ## Price Data
 
@@ -162,9 +162,8 @@ FastAPI and frontend do not call Groq; LLM analysis remains limited to `backend/
 
 | Target | Start Date | End Date | Rows | News Count |
 |---|---:|---:|---:|---:|
-| 0050 | 2026-04-24 | 2026-06-08 | 19 | 206 |
+| 0050 | 2026-04-24 | 2026-06-08 | 19 | 216 |
 | 1234 | 2026-06-08 | 2026-06-08 | 1 | 1 |
-| 1473 | 2026-06-08 | 2026-06-08 | 1 | 1 |
 | 1722 | 2026-04-28 | 2026-04-29 | 2 | 3 |
 | 1802 | 2026-05-25 | 2026-05-25 | 1 | 1 |
 | 2002 | 2026-05-25 | 2026-05-25 | 1 | 1 |
@@ -173,9 +172,8 @@ FastAPI and frontend do not call Groq; LLM analysis remains limited to `backend/
 | 2312 | 2026-05-25 | 2026-05-25 | 1 | 1 |
 | 2313 | 2026-05-25 | 2026-06-02 | 2 | 2 |
 | 2317 | 2026-04-28 | 2026-06-04 | 10 | 24 |
-| 2324 | 2026-06-08 | 2026-06-08 | 1 | 1 |
 | 2327 | 2026-04-28 | 2026-05-25 | 3 | 4 |
-| 2330 | 2026-04-24 | 2026-06-08 | 19 | 233 |
+| 2330 | 2026-04-24 | 2026-06-08 | 19 | 237 |
 | 2337 | 2026-04-27 | 2026-05-29 | 4 | 6 |
 | 2344 | 2026-05-25 | 2026-06-08 | 5 | 5 |
 | 2345 | 2026-04-28 | 2026-05-28 | 2 | 2 |
@@ -187,20 +185,16 @@ FastAPI and frontend do not call Groq; LLM analysis remains limited to `backend/
 | 2492 | 2026-06-08 | 2026-06-08 | 1 | 1 |
 | 2547 | 2026-04-29 | 2026-04-29 | 1 | 1 |
 | 2610 | 2026-04-28 | 2026-04-28 | 1 | 1 |
-| 3037 | 2026-05-25 | 2026-06-08 | 2 | 2 |
+| 3037 | 2026-05-25 | 2026-06-08 | 2 | 3 |
 | 3231 | 2026-05-25 | 2026-06-08 | 5 | 6 |
 | 3416 | 2026-05-25 | 2026-05-25 | 1 | 1 |
 | 3481 | 2026-05-25 | 2026-06-04 | 3 | 4 |
 | 3711 | 2026-04-30 | 2026-06-02 | 4 | 8 |
 | 4919 | 2026-05-25 | 2026-05-25 | 1 | 1 |
 | 4958 | 2026-05-25 | 2026-06-01 | 2 | 4 |
-| 5531 | 2026-06-08 | 2026-06-08 | 1 | 1 |
 | 6116 | 2026-06-08 | 2026-06-08 | 1 | 1 |
-| 6136 | 2026-06-08 | 2026-06-08 | 1 | 1 |
 | 6139 | 2026-05-25 | 2026-05-25 | 1 | 1 |
-| 6579 | 2026-06-08 | 2026-06-08 | 1 | 1 |
 | 6669 | 2026-05-25 | 2026-05-25 | 1 | 1 |
-| 9914 | 2026-06-08 | 2026-06-08 | 1 | 1 |
 
 ## Notebook Readiness
 
