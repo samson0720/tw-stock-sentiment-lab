@@ -150,7 +150,7 @@ def analyze_news(title: str, content: str, model: str | None = None) -> LLMResul
     settings = get_settings()
     last_error: str | None = None
     max_attempts = max(settings.llm_max_retries + 1, 1)
-    max_rate_limit_attempts = max(max_attempts, 4)
+    max_rate_limit_attempts = max_attempts
     attempt = 0
     while attempt < max_rate_limit_attempts:
         try:
