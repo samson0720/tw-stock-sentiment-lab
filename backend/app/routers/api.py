@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.rag.qa import ask as rag_ask
@@ -88,7 +90,14 @@ def rag_query(
     date_from: str | None = Query(None, description="起始日期 YYYY-MM-DD"),
     date_to: str | None = Query(None, description="結束日期 YYYY-MM-DD"),
     top_k: int = Query(5, ge=1, le=20),
+    history: str | None = Query(None, description="JSON array of {role,content} prior turns"),
 ) -> dict:
     if not q.strip():
         raise HTTPException(status_code=400, detail="q cannot be empty")
-    return rag_ask(question=q, stock_id=stock, date_from=date_from, date_to=date_to, top_k=top_k)
+    parsed_history: list[dict] | None = None
+    if history:
+        try:
+            parsed_history = json.loads(history)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return rag_ask(question=q, stock_id=stock, date_from=date_from, date_to=date_to, top_k=top_k, history=parsed_history)

@@ -59,6 +59,7 @@ def ask(
     date_from: str | None = None,
     date_to: str | None = None,
     top_k: int = 5,
+    history: list[dict] | None = None,
 ) -> dict:
     if _embedder_available():
         query_vec = embed([question])[0]
@@ -69,17 +70,20 @@ def ask(
         retrieval_mode = "keyword"
 
     if not hits:
-        return {"answer": "找不到符合條件的相關新聞資料。", "citations": []}
+        return {"answer": "找不到符合條件的相關新聞資料。", "citations": [], "retrieval_mode": retrieval_mode}
 
     context = "\n\n".join(
         f"[{i + 1}] news_id={h['news_id']} 日期:{h['published_at']} 標的:{h['target'] or '—'} 情緒:{h['sentiment'] or '未知'}\n標題:{h['title']}"
         for i, h in enumerate(hits)
     )
 
-    raw = _call_groq([
-        {"role": "system", "content": _SYSTEM},
-        {"role": "user", "content": f"問題：{question}\n\n相關新聞：\n{context}"},
-    ])
+    messages: list[dict] = [{"role": "system", "content": _SYSTEM}]
+    # inject prior turns (max 6 messages = 3 exchanges) to keep context window small
+    if history:
+        messages.extend(history[-6:])
+    messages.append({"role": "user", "content": f"問題：{question}\n\n相關新聞：\n{context}"})
+
+    raw = _call_groq(messages)
 
     result = _parse_json(raw)
 

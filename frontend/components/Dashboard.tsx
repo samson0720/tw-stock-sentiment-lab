@@ -219,9 +219,19 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
     if (!q) return;
     setRagQ("");
     setRagLoading(true);
+
+    // build prior-turn history from completed exchanges (max last 3 pairs = 6 messages)
+    const priorTurns = ragHistory
+      .filter((entry) => entry.result !== null)
+      .slice(-3)
+      .flatMap((entry) => [
+        { role: "user" as const, content: entry.question },
+        { role: "assistant" as const, content: entry.result!.answer },
+      ]);
+
     setRagHistory((h) => [...h, { question: q, result: null, error: null }]);
     try {
-      const result = await ragQuery(q, ragStock || undefined, ragDateFrom || undefined, ragDateTo || undefined);
+      const result = await ragQuery(q, ragStock || undefined, ragDateFrom || undefined, ragDateTo || undefined, 5, priorTurns.length > 0 ? priorTurns : undefined);
       setRagHistory((h) => h.map((e, i) => i === h.length - 1 ? { ...e, result } : e));
     } catch {
       setRagHistory((h) => h.map((e, i) => i === h.length - 1 ? { ...e, error: "查詢失敗，請確認後端服務正在執行。" } : e));

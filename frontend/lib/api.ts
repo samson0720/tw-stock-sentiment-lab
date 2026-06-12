@@ -21,11 +21,13 @@ export async function ragQuery(
   dateFrom?: string,
   dateTo?: string,
   topK = 5,
+  history?: { role: "user" | "assistant"; content: string }[],
 ): Promise<RagResult> {
   const params = new URLSearchParams({ q, top_k: String(topK) });
   if (stock) params.set("stock", stock);
   if (dateFrom) params.set("date_from", dateFrom);
   if (dateTo) params.set("date_to", dateTo);
+  if (history && history.length > 0) params.set("history", JSON.stringify(history));
   return apiGet<RagResult>(`/api/rag/query?${params}`);
 }
 
