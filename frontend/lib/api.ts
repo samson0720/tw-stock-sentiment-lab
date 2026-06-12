@@ -29,11 +29,20 @@ export async function ragQuery(
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`API ${path} failed: ${response.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 50_000);
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      signal: controller.signal,
+      next: { revalidate: 120 },
+    });
+    if (!response.ok) {
+      throw new Error(`API ${path} failed: ${response.status}`);
+    }
+    return response.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return response.json();
 }
 
 export type Summary = {
