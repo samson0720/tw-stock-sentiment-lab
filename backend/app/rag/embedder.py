@@ -3,14 +3,25 @@ from __future__ import annotations
 from functools import lru_cache
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 MODEL_NAME = "BAAI/bge-m3"
 
+try:
+    from sentence_transformers import SentenceTransformer as _ST
+    _AVAILABLE = True
+except ImportError:
+    _AVAILABLE = False
+
+
+def is_available() -> bool:
+    return _AVAILABLE
+
 
 @lru_cache(maxsize=1)
-def _model() -> SentenceTransformer:
-    return SentenceTransformer(MODEL_NAME)
+def _model():
+    if not _AVAILABLE:
+        raise RuntimeError("sentence-transformers not installed; RAG embedding unavailable")
+    return _ST(MODEL_NAME)
 
 
 def embed(texts: list[str]) -> np.ndarray:
