@@ -29,11 +29,11 @@ def _pending_news(
     filters = [f"({prompt_filter})"]
     params: list[object] = [PROMPT_VERSION] if reanalyze_old_prompts else []
     if start_date:
-        filters.append("date(n.published_at) >= date(?)")
-        params.append(start_date)
+        filters.append("SUBSTR(COALESCE(n.published_at, ''), 1, 10) >= ?")
+        params.append(start_date[:10])
     if end_date:
-        filters.append("date(n.published_at) <= date(?)")
-        params.append(end_date)
+        filters.append("SUBSTR(COALESCE(n.published_at, ''), 1, 10) <= ?")
+        params.append(end_date[:10])
     params.append(limit)
     with connect() as conn:
         rows = conn.execute(
@@ -119,10 +119,19 @@ def main() -> None:
         with connect() as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO llm_news_analysis
+                INSERT INTO llm_news_analysis
                 (news_id, status, news_type, target_type, target, target_name, targets, sentiment, confidence, reason,
                  sentiment_score, model_name, prompt_version, raw_response, error_message, processed_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                ON CONFLICT(news_id) DO UPDATE SET
+                    status=EXCLUDED.status, news_type=EXCLUDED.news_type,
+                    target_type=EXCLUDED.target_type, target=EXCLUDED.target,
+                    target_name=EXCLUDED.target_name, targets=EXCLUDED.targets,
+                    sentiment=EXCLUDED.sentiment, confidence=EXCLUDED.confidence,
+                    reason=EXCLUDED.reason, sentiment_score=EXCLUDED.sentiment_score,
+                    model_name=EXCLUDED.model_name, prompt_version=EXCLUDED.prompt_version,
+                    raw_response=EXCLUDED.raw_response, error_message=EXCLUDED.error_message,
+                    processed_at=EXCLUDED.processed_at
                 """,
                 values,
             )

@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: twstock-backend
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: LLM_PROVIDER
+        value: groq
+      - key: LLM_PROMPT_VERSION
+        value: twstock-news-v7
+      - key: LLM_MAX_RETRIES
+        value: "1"
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FINMIND_TOKEN
+        sync: false

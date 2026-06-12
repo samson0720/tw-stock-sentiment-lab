@@ -92,9 +92,12 @@ def main() -> None:
         with connect() as conn:
             conn.executemany(
                 """
-                INSERT OR REPLACE INTO stock_prices
+                INSERT INTO stock_prices
                 (stock_id, date, open, high, low, close, volume, source)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(stock_id, date) DO UPDATE SET
+                    open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low,
+                    close=EXCLUDED.close, volume=EXCLUDED.volume, source=EXCLUDED.source
                 """,
                 list(records),
             )

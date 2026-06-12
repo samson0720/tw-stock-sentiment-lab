@@ -166,6 +166,9 @@ def _migrate_aligned_news_returns(conn) -> None:
 
 
 def migrate() -> None:
+    import os
+    if os.getenv("DATABASE_URL"):
+        return  # PostgreSQL: schema_pg.sql applied by init_db.py; no SQLite migrations needed
     with connect() as conn:
         _migrate_llm_news_analysis(conn)
         _migrate_aligned_news_returns(conn)

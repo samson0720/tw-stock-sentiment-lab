@@ -48,14 +48,14 @@ def main() -> None:
     with connect() as conn:
         conn.executemany(
             """
-            INSERT OR IGNORE INTO raw_news
+            INSERT INTO raw_news
             (title, content, source, published_at, url, crawled_at)
             VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(url) DO NOTHING
             """,
             [(*row, crawled_at) for row in valid_rows],
         )
-        inserted = conn.total_changes
-    print(f"Read {len(rows)} rows, valid {len(valid_rows)}, inserted {inserted} new rows.")
+    print(f"Read {len(rows)} rows, valid {len(valid_rows)} imported (duplicates by URL skipped).")
 
 
 if __name__ == "__main__":

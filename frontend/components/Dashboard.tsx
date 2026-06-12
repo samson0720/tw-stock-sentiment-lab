@@ -674,8 +674,15 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
         <div className="rag-messages">
           {ragHistory.length === 0 && (
             <div className="rag-empty">
-              <Sparkles size={28} />
-              <p>試著問：台積電最近有什麼重要消息？</p>
+              <Sparkles size={32} className="rag-empty-icon" />
+              <p>用自然語言查詢歷史新聞</p>
+              <div className="rag-suggestions">
+                {["台積電最近有什麼重要消息？", "哪些股票近期情緒偏正向？", "鴻海近一個月的新聞摘要", "AI 相關產業有什麼動態？"].map((q) => (
+                  <button key={q} className="rag-suggestion-chip" type="button" onClick={() => setRagQ(q)}>
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -708,7 +715,7 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
                       <div className="rag-citations">
                         <span className="rag-citations-label">引用來源</span>
                         {entry.result.citations.map((c: RagCitation) => (
-                          <article key={c.news_id} className="rag-citation-item">
+                          <article key={c.news_id} className={`rag-citation-item citation-${sentimentClass(c.sentiment) || "neutral"}`}>
                             <div className="rag-citation-meta">
                               <time>{c.published_at}</time>
                               {c.target && <strong>{targetLabel(c.target)}</strong>}

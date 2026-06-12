@@ -61,7 +61,7 @@ def build_daily_sentiment() -> int:
         conn.execute("DELETE FROM daily_sentiment")
         conn.executemany(
             """
-            INSERT OR REPLACE INTO daily_sentiment
+            INSERT INTO daily_sentiment
             (target, trading_date, news_count, sentiment_avg, sentiment_sum,
              positive_count, neutral_count, negative_count, positive_ratio,
              negative_ratio, avg_confidence, sentiment_ma3, sentiment_ma5, sentiment_ma20)

@@ -18,8 +18,12 @@ def upsert_embeddings(rows: list[dict]) -> None:
     with connect() as conn:
         conn.executemany(
             """
-            INSERT OR REPLACE INTO news_embeddings (news_id, stock_id, published_at, embedding)
+            INSERT INTO news_embeddings (news_id, stock_id, published_at, embedding)
             VALUES (?, ?, ?, ?)
+            ON CONFLICT(news_id) DO UPDATE SET
+                stock_id=EXCLUDED.stock_id,
+                published_at=EXCLUDED.published_at,
+                embedding=EXCLUDED.embedding
             """,
             [
                 (r["news_id"], r["stock_id"], r["published_at"], _pack(r["embedding"]))

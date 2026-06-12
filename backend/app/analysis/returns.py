@@ -109,7 +109,7 @@ def build_aligned_returns() -> int:
         conn.execute("DELETE FROM aligned_news_returns")
         conn.executemany(
             """
-            INSERT OR REPLACE INTO aligned_news_returns
+            INSERT INTO aligned_news_returns
             (news_id, trading_date, target, news_type, sentiment_score,
              future_return_1d, future_return_3d, future_return_5d)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)

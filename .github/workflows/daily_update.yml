@@ -1,0 +1,78 @@
+name: Daily Taiwan Stock News Update
+
+on:
+  schedule:
+    # 00:15 UTC = 08:15 Taiwan time (15 min after Groq quota resets at UTC 00:00)
+    - cron: '15 0 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Max LLM analysis rows'
+        required: false
+        default: '80'
+
+jobs:
+  daily-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Initialize database schema
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/scripts/init_db.py
+
+      - name: Fetch latest news
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/scripts/fetch_news.py --mode latest --limit 120
+
+      - name: LLM analysis
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LLM_PROMPT_VERSION: twstock-news-v7
+          LLM_MAX_RETRIES: 1
+          GROQ_MODEL: llama-3.3-70b-versatile
+        run: |
+          LIMIT=${{ github.event.inputs.limit || '80' }}
+          python backend/scripts/analyze_news_with_llm.py \
+            --limit "$LIMIT" \
+            --sleep 0 \
+            --reanalyze-old-prompts
+
+      - name: Fetch stock prices
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          python backend/scripts/fetch_prices.py \
+            --start-date 2026-01-01 \
+            --source yfinance
+
+      - name: Rebuild aligned returns
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/scripts/align_news_returns.py
+
+      - name: Rebuild daily sentiment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/scripts/build_daily_sentiment.py
+
+      - name: Generate daily brief
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/scripts/generate_daily_brief.py

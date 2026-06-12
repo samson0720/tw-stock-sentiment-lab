@@ -37,17 +37,17 @@ def main() -> None:
     with connect() as conn:
         conn.executemany(
             """
-            INSERT OR IGNORE INTO raw_news
+            INSERT INTO raw_news
             (title, content, source, published_at, url, crawled_at)
             VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(url) DO NOTHING
             """,
             [
                 (item.title, item.content, item.source, item.published_at, item.url, item.crawled_at)
                 for item in items
             ],
         )
-        inserted = conn.total_changes
-    print(f"Fetched {len(items)} articles, inserted {inserted} new rows.")
+    print(f"Fetched {len(items)} articles.")
 
 
 if __name__ == "__main__":

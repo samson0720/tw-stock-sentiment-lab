@@ -747,13 +747,22 @@ h1 {
 .rag-panel {
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
+  background:
+    linear-gradient(160deg, rgba(74, 124, 89, 0.04) 0%, rgba(255,255,255,0) 50%),
+    rgba(255, 255, 255, 0.95);
   box-shadow: var(--shadow);
   margin-top: 18px;
   overflow: hidden;
   animation: panelIn 620ms ease 350ms both;
   display: flex;
   flex-direction: column;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.rag-panel:hover {
+  border-color: rgba(74, 124, 89, 0.3);
+  box-shadow: 0 30px 70px rgba(54, 69, 79, 0.13);
+  transform: translateY(-2px);
 }
 
 .rag-header {
@@ -850,11 +859,14 @@ h1 {
 
 .rag-messages {
   flex: 1;
-  padding: 18px 22px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  min-height: 120px;
+  min-height: 160px;
+  background:
+    radial-gradient(ellipse at 80% 0%, rgba(74,124,89,0.05) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(232,238,233,0.18) 0%, transparent 100%);
 }
 
 .rag-empty {
@@ -862,18 +874,45 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  color: var(--muted);
-  padding: 28px 0;
+  gap: 14px;
+  padding: 24px 0 16px;
 }
 
-.rag-empty svg {
-  color: var(--line-strong);
+.rag-empty-icon {
+  color: var(--fern);
+  opacity: 0.35;
 }
 
 .rag-empty p {
   font-size: 14px;
   color: var(--muted);
+  font-weight: 500;
+}
+
+.rag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 560px;
+}
+
+.rag-suggestion-chip {
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  color: var(--charcoal);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 14px;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 120ms ease;
+}
+
+.rag-suggestion-chip:hover {
+  background: rgba(74, 124, 89, 0.08);
+  border-color: var(--fern);
+  color: var(--fern);
+  transform: translateY(-1px);
 }
 
 .rag-exchange {
@@ -904,16 +943,24 @@ h1 {
 
 .rag-bubble.ai {
   align-self: flex-start;
-  background: var(--sage);
+  background: linear-gradient(135deg, #f0f5f1 0%, #edf2ee 100%);
+  border: 1px solid rgba(74, 124, 89, 0.15);
+  border-left: 3px solid var(--fern);
   color: var(--ink);
   border-bottom-left-radius: 3px;
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  animation: ragFadeUp 240ms ease both;
+}
+
+.rag-bubble.user {
+  animation: ragFadeUp 180ms ease both;
 }
 
 .rag-bubble.ai.error {
-  background: #f8e9e3;
+  background: linear-gradient(135deg, #fdf0ec 0%, #f8e9e3 100%);
+  border-left-color: var(--terracotta);
   color: var(--terracotta);
 }
 
@@ -982,16 +1029,29 @@ h1 {
 }
 
 .rag-citation-item {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.82);
   border: 1px solid var(--line);
   border-left: 3px solid var(--line-strong);
   border-radius: 6px;
   padding: 9px 12px;
-  transition: border-left-color 150ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease;
 }
 
 .rag-citation-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 10px rgba(54,69,79,0.08);
+}
+
+.rag-citation-item.citation-positive {
   border-left-color: var(--fern);
+}
+
+.rag-citation-item.citation-negative {
+  border-left-color: var(--terracotta);
+}
+
+.rag-citation-item.citation-neutral {
+  border-left-color: var(--muted);
 }
 
 .rag-citation-item p {
@@ -1034,7 +1094,8 @@ h1 {
   gap: 8px;
   padding: 14px 18px;
   border-top: 1px solid var(--line);
-  background: rgba(248, 250, 246, 0.8);
+  background: linear-gradient(180deg, rgba(232,238,233,0.3) 0%, rgba(248,250,246,0.9) 100%);
+  backdrop-filter: blur(4px);
 }
 
 .rag-question {
@@ -1086,6 +1147,11 @@ h1 {
 @keyframes ragBounce {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
   40% { transform: translateY(-6px); opacity: 1; }
+}
+
+@keyframes ragFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── End RAG panel ──────────────────────────────────────────────── */
