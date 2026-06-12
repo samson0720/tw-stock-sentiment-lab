@@ -12,7 +12,7 @@ PROJECT_ROOT = ROOT.parent
 sys.path.insert(0, str(ROOT))
 
 from app.backtest.strategies import BacktestConfig, run_high_sentiment_equal_weight_strategy
-from app.db.database import connect
+from app.db.database import connect, fetch_all
 from app.utils.time import utc_now_iso
 
 
@@ -109,9 +109,8 @@ def main() -> None:
         signal_lookback_days=args.signal_lookback_days,
     )
 
-    with connect() as conn:
-        sentiment = pd.read_sql_query("SELECT * FROM daily_sentiment ORDER BY target, trading_date", conn)
-        prices = pd.read_sql_query("SELECT * FROM stock_prices ORDER BY stock_id, date", conn)
+    sentiment = pd.DataFrame(fetch_all("SELECT * FROM daily_sentiment ORDER BY target, trading_date"))
+    prices = pd.DataFrame(fetch_all("SELECT * FROM stock_prices ORDER BY stock_id, date"))
 
     equity, positions, metrics = run_high_sentiment_equal_weight_strategy(sentiment, prices, config)
     config_dict = {

@@ -75,7 +75,15 @@ jobs:
       - name: Generate daily brief
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: llama-3.3-70b-versatile
         run: python backend/scripts/generate_daily_brief.py
+
+      - name: Run backtest
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/scripts/run_backtest.py
 
       - name: Build/update RAG embeddings
         env:
