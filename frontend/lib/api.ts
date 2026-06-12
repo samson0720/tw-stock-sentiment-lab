@@ -12,6 +12,7 @@ export type RagCitation = {
 export type RagResult = {
   answer: string;
   citations: RagCitation[];
+  retrieval_mode?: "semantic" | "keyword";
 };
 
 export async function ragQuery(

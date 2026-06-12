@@ -710,6 +710,11 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
                 <div className="rag-bubble ai">
                   <Sparkles size={14} className="rag-ai-icon" />
                   <div className="rag-ai-body">
+                    {entry.result.retrieval_mode && (
+                      <span className={`rag-mode-badge rag-mode-${entry.result.retrieval_mode}`}>
+                        {entry.result.retrieval_mode === "semantic" ? "語意搜尋" : "關鍵字搜尋"}
+                      </span>
+                    )}
                     <p className="rag-answer">{entry.result.answer}</p>
                     {entry.result.citations.length > 0 && (
                       <div className="rag-citations">
