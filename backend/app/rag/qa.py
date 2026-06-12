@@ -5,8 +5,8 @@ import json
 import requests
 
 from app.config import get_settings
-from app.rag.embedder import embed
-from app.rag.retriever import search
+from app.rag.embedder import embed, is_available as _embedder_available
+from app.rag.retriever import keyword_search, search
 
 _SYSTEM = """\
 你是台灣股市新聞分析助理。根據提供的新聞摘要回答問題。
@@ -60,8 +60,13 @@ def ask(
     date_to: str | None = None,
     top_k: int = 5,
 ) -> dict:
-    query_vec = embed([question])[0]
-    hits = search(query_vec, top_k=top_k, stock_id=stock_id, date_from=date_from, date_to=date_to)
+    if _embedder_available():
+        query_vec = embed([question])[0]
+        hits = search(query_vec, top_k=top_k, stock_id=stock_id, date_from=date_from, date_to=date_to)
+        retrieval_mode = "semantic"
+    else:
+        hits = keyword_search(question, top_k=top_k, stock_id=stock_id, date_from=date_from, date_to=date_to)
+        retrieval_mode = "keyword"
 
     if not hits:
         return {"answer": "找不到符合條件的相關新聞資料。", "citations": []}
@@ -93,4 +98,5 @@ def ask(
                 "score": round(h["score"], 4),
             })
     result["citations"] = enriched
+    result["retrieval_mode"] = retrieval_mode
     return result

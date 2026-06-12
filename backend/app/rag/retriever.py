@@ -32,6 +32,60 @@ def upsert_embeddings(rows: list[dict]) -> None:
         )
 
 
+def keyword_search(
+    query: str,
+    top_k: int = 5,
+    stock_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[dict]:
+    """Fallback retrieval via SQL ILIKE when embedding model is unavailable."""
+    filters: list[str] = ["(n.title ILIKE ? OR n.content ILIKE ?)"]
+    params: list = [f"%{query}%", f"%{query}%"]
+
+    if stock_id:
+        filters.append("a.target = ?")
+        params.append(stock_id)
+    if date_from:
+        filters.append("n.published_at >= ?")
+        params.append(date_from)
+    if date_to:
+        filters.append("n.published_at <= ?")
+        params.append(date_to)
+
+    where = "WHERE " + " AND ".join(filters)
+    params.append(top_k)
+
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT n.id AS news_id, n.title, n.published_at,
+                   a.news_type, a.sentiment, a.target, a.confidence,
+                   NULL AS stock_id
+            FROM raw_news n
+            LEFT JOIN llm_news_analysis a ON a.news_id = n.id AND a.status = 'success'
+            {where}
+            ORDER BY n.published_at DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+
+    return [
+        {
+            "news_id": r["news_id"],
+            "score": 0.5,
+            "title": r["title"],
+            "published_at": r["published_at"],
+            "stock_id": r["stock_id"],
+            "news_type": r["news_type"],
+            "sentiment": r["sentiment"],
+            "target": r["target"],
+        }
+        for r in rows
+    ]
+
+
 def search(
     query_vec: np.ndarray,
     top_k: int = 5,

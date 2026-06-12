@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from app.rag.embedder import is_available as _embedder_available
 from app.rag.qa import ask as rag_ask
 from app.services.news_service import get_news, list_news
 from app.services.summary_service import (
@@ -92,6 +91,4 @@ def rag_query(
 ) -> dict:
     if not q.strip():
         raise HTTPException(status_code=400, detail="q cannot be empty")
-    if not _embedder_available():
-        raise HTTPException(status_code=503, detail="Embedding model not available on this deployment")
     return rag_ask(question=q, stock_id=stock, date_from=date_from, date_to=date_to, top_k=top_k)
