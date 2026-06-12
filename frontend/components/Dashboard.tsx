@@ -150,8 +150,12 @@ function joinTargets(targets: string[]) {
   return targets.map(targetLabel).join("、");
 }
 
-function buildBriefText(dailyBrief: DailyBrief | null, observedTargetCount: number) {
-  if (!dailyBrief) return "目前尚未產生 daily_brief。執行 daily update 後，這裡會顯示最新摘要。";
+function buildBriefText(dailyBrief: DailyBrief | null, observedTargetCount: number): { text: string; isAI: boolean } {
+  if (!dailyBrief) return { text: "目前尚未產生 daily_brief。執行 daily update 後，這裡會顯示最新摘要。", isAI: false };
+
+  if (dailyBrief.summary_text && dailyBrief.summary_text.length > 40) {
+    return { text: dailyBrief.summary_text, isAI: true };
+  }
 
   const tone = marketToneText(dailyBrief.market_label);
   const score = fmtDecimal(dailyBrief.market_sentiment_score, 2);
@@ -161,11 +165,14 @@ function buildBriefText(dailyBrief: DailyBrief | null, observedTargetCount: numb
     ...dailyBrief.risk_flags.map((row) => row.target)
   ].filter((target, index, values) => values.indexOf(target) === index);
 
-  return `${dailyBrief.brief_date} 整體市場情緒${tone}，情緒分數為 ${score}。當日完成 ${dailyBrief.analyzed_count} 則新聞的 LLM 分析，其中 ${observedTargetCount} 個標的形成每日觀察訊號。偏多標的包含 ${joinTargets(
-    positiveTargets
-  )}；偏空與風險提醒標的則集中在 ${joinTargets(
-    riskTargets.slice(0, 3)
-  )}。由於本摘要根據已處理新聞與情緒模型產生，因此僅作為市場觀察參考，不作為投資建議。`;
+  return {
+    text: `${dailyBrief.brief_date} 整體市場情緒${tone}，情緒分數為 ${score}。當日完成 ${dailyBrief.analyzed_count} 則新聞的 LLM 分析，其中 ${observedTargetCount} 個標的形成每日觀察訊號。偏多標的包含 ${joinTargets(
+      positiveTargets
+    )}；偏空與風險提醒標的則集中在 ${joinTargets(
+      riskTargets.slice(0, 3)
+    )}。由於本摘要根據已處理新聞與情緒模型產生，因此僅作為市場觀察參考，不作為投資建議。`,
+    isAI: false,
+  };
 }
 
 const BACKTEST_SHORT_DAYS = 30;
@@ -335,7 +342,7 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
 
   const updatedAt = minuteDateTime(dailyBrief?.created_at);
   const observationDate = dailyBrief?.brief_date ?? "-";
-  const briefText = buildBriefText(dailyBrief, observedTargetCount);
+  const { text: briefText, isAI: briefIsAI } = buildBriefText(dailyBrief, observedTargetCount);
   const sentimentBars = useMemo(() => {
     const counts = new Map<string, number>();
     const todaysNews = dailyBrief?.brief_date
@@ -422,7 +429,10 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
           <div className="section-heading">
             <div>
               <span>Daily brief</span>
-              <h2>今日摘要</h2>
+              <h2>
+                今日摘要
+                {briefIsAI && <span className="ai-badge"><Sparkles size={10} />AI 生成</span>}
+              </h2>
             </div>
             <button className="refresh-button" type="button" onClick={() => window.location.reload()}>
               <RefreshCw size={15} />

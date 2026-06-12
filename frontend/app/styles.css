@@ -387,6 +387,22 @@ h1 {
   max-width: 780px;
 }
 
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: linear-gradient(135deg, #e8f4f0, #d4ecff);
+  border: 1px solid #9bcfb8;
+  border-radius: 10px;
+  color: #2a7a5a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .focus-group {
   border-top: 1px solid var(--line);
   padding-top: 15px;

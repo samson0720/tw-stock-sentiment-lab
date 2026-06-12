@@ -10,7 +10,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import requests
+
 from app.analysis.targets import normalize_target
+from app.config import get_settings
 from app.db.migrations import migrate
 from app.db.database import connect
 
@@ -223,6 +226,50 @@ def _summary_text(
     )
 
 
+def _llm_narrative(
+    brief_date: str,
+    market_label: str,
+    market_score: float | None,
+    top_positive: list[dict],
+    top_negative: list[dict],
+    risk_flags: list[dict],
+    analyzed_count: int,
+) -> str | None:
+    settings = get_settings()
+    if not settings.groq_api_key:
+        return None
+    positive_text = "、".join(r["target"] for r in top_positive[:4]) or "暫無"
+    negative_text = "、".join(r["target"] for r in top_negative[:4]) or "暫無"
+    risk_text = "、".join(r["target"] for r in risk_flags[:3]) or "無明顯集中風險"
+    score_text = f"{market_score:.2f}" if market_score is not None else "不足"
+    prompt = (
+        f"你是一位台股市場觀察助理。根據以下量化數據，用繁體中文寫出一段 3–4 句的市場觀察摘要（不含標題，不加條列符號）。"
+        f"語氣客觀，結尾加上「本摘要僅供參考，不構成投資建議。」\n\n"
+        f"日期：{brief_date}\n"
+        f"整體情緒：{market_label}，情緒分數 {score_text}\n"
+        f"已分析新聞數：{analyzed_count} 則\n"
+        f"情緒偏多標的：{positive_text}\n"
+        f"情緒偏空標的：{negative_text}\n"
+        f"風險提醒標的：{risk_text}\n"
+    )
+    try:
+        resp = requests.post(
+            f"{settings.groq_base_url.rstrip('/')}/chat/completions",
+            headers={"Authorization": f"Bearer {settings.groq_api_key}", "Content-Type": "application/json"},
+            json={
+                "model": settings.groq_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.4,
+                "max_completion_tokens": 300,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return None
+
+
 def generate_daily_brief(brief_date: str | None = None) -> dict:
     migrate()
     selected_date = brief_date or _latest_brief_date()
@@ -254,15 +301,14 @@ def generate_daily_brief(brief_date: str | None = None) -> dict:
     flags = _risk_flags(daily_rows, analysis_rows)
     analyzed_count = len(analysis_rows)
     market_label = _market_label(market_score, total_news_count)
-    summary_text = _summary_text(
-        selected_date,
-        market_label,
-        market_score,
-        total_news_count,
-        analyzed_count,
-        top_positive,
-        top_negative,
-        flags,
+    llm_text = _llm_narrative(
+        selected_date, market_label, market_score,
+        top_positive, top_negative, flags, analyzed_count,
+    )
+    summary_text = llm_text or _summary_text(
+        selected_date, market_label, market_score,
+        total_news_count, analyzed_count,
+        top_positive, top_negative, flags,
     )
 
     payload = {
