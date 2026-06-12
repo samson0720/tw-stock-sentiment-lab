@@ -9,16 +9,18 @@ from app.rag.embedder import embed, is_available as _embedder_available
 from app.rag.retriever import keyword_search, search
 
 _SYSTEM = """\
-你是台灣股市新聞分析助理。根據提供的新聞摘要回答問題。
+你是台灣股市新聞分析助理。根據提供的新聞內容回答問題。
 必須以 JSON 格式回答，格式如下：
 {
   "answer": "根據以下新聞，...",
-  "citations": [{"news_id": 123, "title": "...", "published_at": "..."}]
+  "citations": [{"news_id": 123, "title": "...", "published_at": "..."}],
+  "suggested_questions": ["...", "...", "..."]
 }
 規則：
-- answer 用繁體中文
+- answer 用繁體中文，綜合新聞全文給出有深度的分析
 - citations 只列出實際支持答案的新聞（最多 5 筆）
-- 若提供的新聞資料不足以回答，在 answer 說明並給出 citations: []
+- suggested_questions 提供 2–3 個用戶可能感興趣的後續問題，繁體中文
+- 若提供的新聞資料不足以回答，在 answer 說明並給出 citations: [], suggested_questions: []
 - 不可自行捏造未在新聞中出現的數據\
 """
 
@@ -72,8 +74,16 @@ def ask(
     if not hits:
         return {"answer": "找不到符合條件的相關新聞資料。", "citations": [], "retrieval_mode": retrieval_mode}
 
+    def _snippet(content: str, max_len: int = 300) -> str:
+        text = content.strip()
+        return text[:max_len] + "…" if len(text) > max_len else text
+
     context = "\n\n".join(
-        f"[{i + 1}] news_id={h['news_id']} 日期:{h['published_at']} 標的:{h['target'] or '—'} 情緒:{h['sentiment'] or '未知'}\n標題:{h['title']}"
+        f"[{i + 1}] news_id={h['news_id']} 日期:{h['published_at']} 標的:{h['target'] or '—'} 情緒:{h['sentiment'] or '未知'}\n"
+        f"標題:{h['title']}\n"
+        f"內文:{_snippet(h.get('content', ''))}" if h.get("content") else
+        f"[{i + 1}] news_id={h['news_id']} 日期:{h['published_at']} 標的:{h['target'] or '—'} 情緒:{h['sentiment'] or '未知'}\n"
+        f"標題:{h['title']}"
         for i, h in enumerate(hits)
     )
 

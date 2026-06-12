@@ -803,6 +803,29 @@ h1 {
   line-height: 1.2;
 }
 
+.rag-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rag-clear-btn {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 12px;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.rag-clear-btn:hover {
+  background: rgba(183, 71, 42, 0.07);
+  border-color: var(--terracotta);
+  color: var(--terracotta);
+}
+
 .rag-filter-toggle {
   display: flex;
   align-items: center;
@@ -895,6 +918,25 @@ h1 {
   gap: 8px;
   justify-content: center;
   max-width: 560px;
+}
+
+.rag-suggestions.rag-followup {
+  justify-content: flex-start;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  max-width: 100%;
+}
+
+.rag-suggestions-label {
+  display: block;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
 }
 
 .rag-suggestion-chip {

@@ -13,6 +13,7 @@ export type RagResult = {
   answer: string;
   citations: RagCitation[];
   retrieval_mode?: "semantic" | "keyword";
+  suggested_questions?: string[];
 };
 
 export async function ragQuery(

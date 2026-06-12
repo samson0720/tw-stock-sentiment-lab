@@ -59,7 +59,7 @@ def keyword_search(
     with connect() as conn:
         rows = conn.execute(
             f"""
-            SELECT n.id AS news_id, n.title, n.published_at,
+            SELECT n.id AS news_id, n.title, n.content, n.published_at,
                    a.news_type, a.sentiment, a.target, a.confidence,
                    NULL AS stock_id
             FROM raw_news n
@@ -76,6 +76,7 @@ def keyword_search(
             "news_id": r["news_id"],
             "score": 0.5,
             "title": r["title"],
+            "content": r["content"] or "",
             "published_at": r["published_at"],
             "stock_id": r["stock_id"],
             "news_type": r["news_type"],
@@ -112,7 +113,7 @@ def search(
         rows = conn.execute(
             f"""
             SELECT e.news_id, e.stock_id, e.published_at, e.embedding,
-                   n.title,
+                   n.title, n.content,
                    a.news_type, a.sentiment, a.target, a.confidence
             FROM news_embeddings e
             JOIN raw_news n ON n.id = e.news_id
@@ -134,6 +135,7 @@ def search(
             "news_id": rows[i]["news_id"],
             "score": float(scores[i]),
             "title": rows[i]["title"],
+            "content": rows[i]["content"] or "",
             "published_at": rows[i]["published_at"],
             "stock_id": rows[i]["stock_id"],
             "news_type": rows[i]["news_type"],

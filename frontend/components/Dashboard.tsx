@@ -654,14 +654,25 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
               <h2>新聞問答</h2>
             </div>
           </div>
-          <button
-            className={`rag-filter-toggle ${ragShowFilters ? "active" : ""}`}
-            type="button"
-            onClick={() => setRagShowFilters((v) => !v)}
-          >
-            <Search size={13} />
-            篩選條件
-          </button>
+          <div className="rag-header-actions">
+            {ragHistory.length > 0 && (
+              <button
+                className="rag-clear-btn"
+                type="button"
+                onClick={() => setRagHistory([])}
+              >
+                清除對話
+              </button>
+            )}
+            <button
+              className={`rag-filter-toggle ${ragShowFilters ? "active" : ""}`}
+              type="button"
+              onClick={() => setRagShowFilters((v) => !v)}
+            >
+              <Search size={13} />
+              篩選條件
+            </button>
+          </div>
         </div>
 
         {ragShowFilters && (
@@ -726,6 +737,16 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
                       </span>
                     )}
                     <p className="rag-answer">{entry.result.answer}</p>
+                    {entry.result.suggested_questions && entry.result.suggested_questions.length > 0 && (
+                      <div className="rag-suggestions rag-followup">
+                        <span className="rag-suggestions-label">繼續追問</span>
+                        {entry.result.suggested_questions.map((q) => (
+                          <button key={q} className="rag-suggestion-chip" type="button" onClick={() => setRagQ(q)}>
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {entry.result.citations.length > 0 && (
                       <div className="rag-citations">
                         <span className="rag-citations-label">引用來源</span>
