@@ -243,7 +243,6 @@ function buildAccuracyStats(returns: ReturnRow[]): AccuracyStats {
     avgReturnNeutral1d: avg(byGroup.neutral),
   };
 }
-}
 
 export function Dashboard({ summary, news, daily, returns, backtests, marketPrices, dailyBrief }: Props) {
   type ChatEntry = { question: string; result: RagResult | null; error: string | null };
