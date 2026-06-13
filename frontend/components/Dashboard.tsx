@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { DailyBrief, DailySentiment, NewsRow, RagCitation, RagResult, ReturnRow, StockPriceRow, StockRow, Summary } from "@/lib/api";
+import type { DailyBrief, DailySentiment, NewsRow, RagCitation, RagResult, ReturnRow, StockPriceRow, Summary } from "@/lib/api";
 import { ragQuery } from "@/lib/api";
 
 type Props = {
@@ -23,7 +23,6 @@ type Props = {
   news: NewsRow[];
   daily: DailySentiment[];
   returns: ReturnRow[];
-  stocks: StockRow[];
   marketPrices: StockPriceRow[];
   dailyBrief: DailyBrief | null;
 };
