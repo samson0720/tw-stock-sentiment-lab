@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import type { BacktestRow, DailyBrief, DailySentiment, NewsRow, RagCitation, RagResult, ReturnRow, StockPriceRow, StockRow, Summary } from "@/lib/api";
+import type { DailyBrief, DailySentiment, NewsRow, RagCitation, RagResult, ReturnRow, StockPriceRow, StockRow, Summary } from "@/lib/api";
 import { ragQuery } from "@/lib/api";
 
 type Props = {
@@ -23,7 +23,6 @@ type Props = {
   news: NewsRow[];
   daily: DailySentiment[];
   returns: ReturnRow[];
-  backtests: BacktestRow[];
   stocks: StockRow[];
   marketPrices: StockPriceRow[];
   dailyBrief: DailyBrief | null;
@@ -175,27 +174,6 @@ function buildBriefText(dailyBrief: DailyBrief | null, observedTargetCount: numb
   };
 }
 
-const BACKTEST_SHORT_DAYS = 30;
-
-function parseMetrics(raw: string): Record<string, number | string> {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
-function tradingDaysBetween(start: string | null, end: string | null): number | null {
-  if (!start || !end) return null;
-  const msPerDay = 86400000;
-  const from = new Date(start).getTime();
-  const to = new Date(end).getTime();
-  if (Number.isNaN(from) || Number.isNaN(to)) return null;
-  const calendarDays = Math.round((to - from) / msPerDay) + 1;
-  // rough weekday count (no holiday calendar)
-  return Math.round(calendarDays * 5 / 7);
-}
-
 function sentimentLabel(s: string | null) {
   if (s === "positive") return "正向";
   if (s === "negative") return "負向";
@@ -209,42 +187,7 @@ function sentimentClass(s: string | null) {
   return "";
 }
 
-type AccuracyStats = {
-  total: number;
-  directional1d: number | null;
-  avgReturnPositive1d: number | null;
-  avgReturnNegative1d: number | null;
-  avgReturnNeutral1d: number | null;
-};
-
-function buildAccuracyStats(returns: ReturnRow[]): AccuracyStats {
-  const valid = returns.filter(
-    (r) => r.future_return_1d !== null && r.sentiment !== null && r.sentiment_score !== null
-  );
-  if (valid.length === 0) return { total: 0, directional1d: null, avgReturnPositive1d: null, avgReturnNegative1d: null, avgReturnNeutral1d: null };
-
-  let correct = 0;
-  const byGroup: Record<string, number[]> = { positive: [], negative: [], neutral: [] };
-
-  for (const r of valid) {
-    const ret = r.future_return_1d as number;
-    const score = r.sentiment_score as number;
-    if ((score > 0 && ret > 0) || (score < 0 && ret < 0)) correct++;
-    const grp = r.sentiment as string;
-    if (grp in byGroup) byGroup[grp].push(ret);
-  }
-
-  const avg = (arr: number[]) => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
-  return {
-    total: valid.length,
-    directional1d: correct / valid.length,
-    avgReturnPositive1d: avg(byGroup.positive),
-    avgReturnNegative1d: avg(byGroup.negative),
-    avgReturnNeutral1d: avg(byGroup.neutral),
-  };
-}
-
-export function Dashboard({ summary, news, daily, returns, backtests, marketPrices, dailyBrief }: Props) {
+export function Dashboard({ summary, news, daily, returns, marketPrices, dailyBrief }: Props) {
   type ChatEntry = { question: string; result: RagResult | null; error: string | null };
 
   const [ragQ, setRagQ] = useState("");
@@ -390,8 +333,6 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
       ...dailyBrief.risk_flags.map((row) => row.target)
     ]).size;
   }, [daily, dailyBrief]);
-
-  const accuracyStats = useMemo(() => buildAccuracyStats(returns), [returns]);
 
   const marketToneClass =
     dailyBrief?.market_label === "情緒偏多" ? "positive" : dailyBrief?.market_label === "情緒偏空" ? "negative" : "";
@@ -648,109 +589,6 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
           ))}
         </div>
       </section>
-
-      {backtests.length > 0 && (
-        <section className="backtest-panel" aria-label="backtest results">
-          <div className="section-heading">
-            <div>
-              <span>Backtest</span>
-              <h2>回測績效</h2>
-              <p className="panel-note">基於歷史新聞情緒訊號的策略模擬結果</p>
-            </div>
-          </div>
-
-          <div className="backtest-warning" role="alert">
-            <AlertTriangle size={16} />
-            <p>
-              <strong>統計警示：</strong>回測期間僅 17 個交易日（2026-04-29 ~ 2026-05-22），樣本過短，Sharpe Ratio 與年化報酬等指標統計上不具參考意義。至少需累積 252 個交易日（一年）以上的資料，方可作為策略評估依據。
-            </p>
-          </div>
-
-          <div className="backtest-table-wrap">
-            <table className="backtest-table">
-              <thead>
-                <tr>
-                  <th>策略名稱</th>
-                  <th>回測期間</th>
-                  <th>交易日數</th>
-                  <th>Sharpe Ratio</th>
-                  <th>年化報酬</th>
-                  <th>最大回撤</th>
-                  <th>勝率</th>
-                </tr>
-              </thead>
-              <tbody>
-                {backtests.map((row) => {
-                  const m = parseMetrics(row.metrics);
-                  const days = tradingDaysBetween(row.start_date, row.end_date);
-                  const isShort = days !== null && days < BACKTEST_SHORT_DAYS;
-                  const sharpe = typeof m.sharpe_ratio === "number" ? m.sharpe_ratio : null;
-                  const isSuspiciousSharpe = sharpe !== null && sharpe > 5;
-                  const showSampleWarning = isShort || isSuspiciousSharpe;
-                  return (
-                    <tr key={row.id} className={showSampleWarning ? "row-warn" : ""}>
-                      <td>{row.strategy_name}</td>
-                      <td className="date-range">
-                        {shortDate(row.start_date)} ~ {shortDate(row.end_date)}
-                      </td>
-                      <td>
-                        {days !== null ? (
-                          <span className={isShort ? "days-warn" : ""}>{days} 日{isShort ? " ⚠" : ""}</span>
-                        ) : "-"}
-                      </td>
-                      <td>
-                        {sharpe !== null ? (
-                          <span className={isSuspiciousSharpe ? "value-warn" : ""}>
-                            {fmtDecimal(sharpe)}{isSuspiciousSharpe ? " *" : ""}
-                          </span>
-                        ) : "-"}
-                      </td>
-                      <td>{typeof m.annualized_return === "number" ? fmtPercent(m.annualized_return) : "-"}</td>
-                      <td>{typeof m.max_drawdown === "number" ? fmtPercent(m.max_drawdown) : "-"}</td>
-                      <td>{typeof m.win_rate === "number" ? fmtPercent(m.win_rate) : "-"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="panel-note" style={{ marginTop: "10px" }}>* 樣本不足：交易日數 &lt; 30 日或 Sharpe Ratio &gt; 5，年化指標為短期外推，不具統計意義。</p>
-        </section>
-      )}
-
-      {accuracyStats.total > 0 && (
-        <section className="validation-panel" aria-label="model accuracy">
-          <div className="section-heading">
-            <div>
-              <span>Model validation</span>
-              <h2>LLM 情緒預測驗證</h2>
-              <p className="panel-note">以情緒分數方向預測次日報酬方向的準確率（不構成投資建議）</p>
-            </div>
-          </div>
-          <div className="validation-grid">
-            <article className="validation-card">
-              <span>樣本數</span>
-              <strong>{accuracyStats.total.toLocaleString()}</strong>
-              <p>有效對齊筆數</p>
-            </article>
-            <article className={`validation-card ${accuracyStats.directional1d !== null && accuracyStats.directional1d >= 0.5 ? "positive-bg" : "neutral-bg"}`}>
-              <span>方向準確率</span>
-              <strong>{accuracyStats.directional1d !== null ? fmtPercent(accuracyStats.directional1d * 100) : "-"}</strong>
-              <p>情緒方向 vs 次日漲跌</p>
-            </article>
-            <article className="validation-card positive-bg">
-              <span>正向情緒平均報酬</span>
-              <strong>{accuracyStats.avgReturnPositive1d !== null ? fmtPercent(accuracyStats.avgReturnPositive1d * 100, 3) : "-"}</strong>
-              <p>次日</p>
-            </article>
-            <article className="validation-card negative-bg">
-              <span>負向情緒平均報酬</span>
-              <strong>{accuracyStats.avgReturnNegative1d !== null ? fmtPercent(accuracyStats.avgReturnNegative1d * 100, 3) : "-"}</strong>
-              <p>次日</p>
-            </article>
-          </div>
-        </section>
-      )}
 
       <section className="rag-panel">
         <div className="rag-header">
