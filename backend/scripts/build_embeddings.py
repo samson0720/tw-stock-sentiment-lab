@@ -35,10 +35,14 @@ def main() -> None:
                END AS stock_id
         FROM raw_news n
         LEFT JOIN llm_news_analysis a ON a.news_id = n.id AND a.status = 'success'
+        WHERE n.id NOT IN (SELECT news_id FROM news_embeddings)
         """
     )
     total = len(rows)
-    print(f"Embedding {total} articles with BAAI/bge-m3 (first run downloads ~570 MB)...")
+    if total == 0:
+        print("All articles already embedded, nothing to do.")
+        return
+    print(f"Embedding {total} new articles with BAAI/bge-m3...")
 
     for i in range(0, total, BATCH_SIZE):
         batch = rows[i : i + BATCH_SIZE]
