@@ -91,7 +91,7 @@ export type ReturnRow = {
   future_return_1d: number | null;
   future_return_3d: number | null;
   future_return_5d: number | null;
-  sentiment: string;
+  sentiment: string | null;
 };
 
 export type BacktestRow = {

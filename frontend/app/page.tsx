@@ -18,7 +18,7 @@ export default async function Home() {
     apiGet<Summary>("/api/sentiment/summary").catch(empty({ news_count: 0, analyzed_count: 0, failed_count: 0, by_sentiment: [], by_type: [] })),
     apiGet<NewsRow[]>("/api/news?limit=100").catch(empty([] as NewsRow[])),
     apiGet<DailySentiment[]>("/api/sentiment/daily?limit=500").catch(empty([] as DailySentiment[])),
-    apiGet<ReturnRow[]>("/api/analysis/returns?limit=500").catch(empty([] as ReturnRow[])),
+    apiGet<ReturnRow[]>("/api/analysis/returns?limit=2000").catch(empty([] as ReturnRow[])),
     apiGet<BacktestRow[]>("/api/backtest/results").catch(empty([] as BacktestRow[])),
     apiGet<StockRow[]>("/api/stocks").catch(empty([] as StockRow[])),
     apiGet<StockPriceRow[]>("/api/stocks/0050/prices?limit=30").catch(empty([] as StockPriceRow[])),
