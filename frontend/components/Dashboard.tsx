@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, FileText, Newspaper, RefreshCw, Search, Sparkles } from "lucide-react";
 import {
   Bar,
@@ -254,6 +254,25 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
   const [ragLoading, setRagLoading] = useState(false);
   const [ragHistory, setRagHistory] = useState<ChatEntry[]>([]);
   const [ragShowFilters, setRagShowFilters] = useState(false);
+  const [warmupCountdown, setWarmupCountdown] = useState<number | null>(null);
+
+  // detect cold-start: backend returned all-empty data
+  const isBackendCold = summary.news_count === 0 && daily.length === 0 && dailyBrief === null;
+
+  useEffect(() => {
+    if (!isBackendCold) return;
+    let remaining = 30;
+    setWarmupCountdown(remaining);
+    const interval = setInterval(() => {
+      remaining -= 1;
+      setWarmupCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+        window.location.reload();
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isBackendCold]);
 
   async function handleRagSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -401,6 +420,12 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
 
   return (
     <main className="dashboard-shell">
+      {isBackendCold && warmupCountdown !== null && (
+        <div className="warmup-banner" role="status">
+          <span className="warmup-spinner" />
+          <span>後端服務啟動中，請稍候… <strong>{warmupCountdown} 秒</strong>後自動重新整理</span>
+        </div>
+      )}
       <section className="hero-panel" aria-label="daily news analysis">
         <div className="hero-copy">
           <div className="eyebrow">
