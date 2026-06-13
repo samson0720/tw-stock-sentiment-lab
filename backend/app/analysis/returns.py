@@ -92,6 +92,8 @@ def build_aligned_returns() -> int:
                 item_sentiment_score = sentiment_score(item.get("sentiment"), item.get("confidence"))
             else:
                 item_sentiment_score = row["sentiment_score"]
+            if item_sentiment_score is None:
+                item_sentiment_score = 0.0
             output.append(
                 (
                     row["news_id"],
@@ -104,6 +106,16 @@ def build_aligned_returns() -> int:
                     future_return(5),
                 )
             )
+
+    # Deduplicate by (news_id, target) to avoid PRIMARY KEY conflicts
+    seen: set[tuple] = set()
+    deduped: list[tuple] = []
+    for row_data in output:
+        key = (row_data[0], row_data[2])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(row_data)
+    output = deduped
 
     with connect() as conn:
         conn.execute("DELETE FROM aligned_news_returns")
