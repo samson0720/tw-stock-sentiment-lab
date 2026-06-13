@@ -339,7 +339,7 @@ export function Dashboard({ summary, news, daily, returns, marketPrices, dailyBr
 
   const updatedAt = minuteDateTime(dailyBrief?.created_at);
   const observationDate = dailyBrief?.brief_date ?? "-";
-  const { text: briefText, isAI: briefIsAI } = buildBriefText(dailyBrief, observedTargetCount);
+  const { text: briefText } = buildBriefText(dailyBrief, observedTargetCount);
   const sentimentBars = useMemo(() => {
     const counts = new Map<string, number>();
     const todaysNews = dailyBrief?.brief_date
@@ -432,10 +432,7 @@ export function Dashboard({ summary, news, daily, returns, marketPrices, dailyBr
           <div className="section-heading">
             <div>
               <span>Daily brief</span>
-              <h2>
-                今日摘要
-                {briefIsAI && <span className="ai-badge"><Sparkles size={10} />AI 生成</span>}
-              </h2>
+              <h2>今日摘要</h2>
             </div>
             <button className="refresh-button" type="button" onClick={() => window.location.reload()}>
               <RefreshCw size={15} />
