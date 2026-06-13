@@ -14,7 +14,7 @@ on:
 jobs:
   daily-update:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 360
 
     steps:
       - uses: actions/checkout@v4
@@ -88,4 +88,4 @@ jobs:
       - name: Build/update RAG embeddings
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python backend/scripts/build_embeddings.py
+        run: python backend/scripts/build_embeddings.py --limit 500

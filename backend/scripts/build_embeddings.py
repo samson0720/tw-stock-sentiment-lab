@@ -6,6 +6,7 @@ Run once (or re-run to update new articles):
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -24,8 +25,13 @@ def _date(val: str | None) -> str | None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=0, help="Max articles to embed per run (0 = no limit, most recent first)")
+    args = parser.parse_args()
+
+    limit_clause = f"LIMIT {args.limit}" if args.limit > 0 else ""
     rows = fetch_all(
-        """
+        f"""
         SELECT n.id,
                n.title,
                n.content,
@@ -36,6 +42,8 @@ def main() -> None:
         FROM raw_news n
         LEFT JOIN llm_news_analysis a ON a.news_id = n.id AND a.status = 'success'
         WHERE n.id NOT IN (SELECT news_id FROM news_embeddings)
+        ORDER BY n.id DESC
+        {limit_clause}
         """
     )
     total = len(rows)
