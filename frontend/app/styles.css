@@ -662,6 +662,81 @@ h1 {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
+.validation-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  margin-top: 18px;
+  animation: panelIn 640ms ease 320ms both;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.validation-panel:hover {
+  border-color: rgba(74, 124, 89, 0.36);
+  box-shadow: 0 30px 70px rgba(54, 69, 79, 0.14);
+  transform: translateY(-3px);
+}
+
+.validation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.validation-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: var(--paper);
+}
+
+.validation-card span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.validation-card strong {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.validation-card p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.validation-card.positive-bg {
+  background: rgba(74, 124, 89, 0.07);
+  border-color: rgba(74, 124, 89, 0.3);
+}
+
+.validation-card.positive-bg strong { color: var(--fern); }
+
+.validation-card.negative-bg {
+  background: rgba(183, 71, 42, 0.06);
+  border-color: rgba(183, 71, 42, 0.25);
+}
+
+.validation-card.negative-bg strong { color: var(--terracotta); }
+
+.validation-card.neutral-bg {
+  background: var(--sage);
+  border-color: var(--line-strong);
+}
+
 .backtest-panel:hover {
   border-color: rgba(74, 124, 89, 0.36);
   box-shadow: 0 30px 70px rgba(54, 69, 79, 0.14);

@@ -209,6 +209,42 @@ function sentimentClass(s: string | null) {
   return "";
 }
 
+type AccuracyStats = {
+  total: number;
+  directional1d: number | null;
+  avgReturnPositive1d: number | null;
+  avgReturnNegative1d: number | null;
+  avgReturnNeutral1d: number | null;
+};
+
+function buildAccuracyStats(returns: ReturnRow[]): AccuracyStats {
+  const valid = returns.filter(
+    (r) => r.future_return_1d !== null && r.sentiment !== null && r.sentiment_score !== null
+  );
+  if (valid.length === 0) return { total: 0, directional1d: null, avgReturnPositive1d: null, avgReturnNegative1d: null, avgReturnNeutral1d: null };
+
+  let correct = 0;
+  const byGroup: Record<string, number[]> = { positive: [], negative: [], neutral: [] };
+
+  for (const r of valid) {
+    const ret = r.future_return_1d as number;
+    const score = r.sentiment_score as number;
+    if ((score > 0 && ret > 0) || (score < 0 && ret < 0)) correct++;
+    const grp = r.sentiment as string;
+    if (grp in byGroup) byGroup[grp].push(ret);
+  }
+
+  const avg = (arr: number[]) => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+  return {
+    total: valid.length,
+    directional1d: correct / valid.length,
+    avgReturnPositive1d: avg(byGroup.positive),
+    avgReturnNegative1d: avg(byGroup.negative),
+    avgReturnNeutral1d: avg(byGroup.neutral),
+  };
+}
+}
+
 export function Dashboard({ summary, news, daily, returns, backtests, marketPrices, dailyBrief }: Props) {
   type ChatEntry = { question: string; result: RagResult | null; error: string | null };
 
@@ -336,6 +372,8 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
       ...dailyBrief.risk_flags.map((row) => row.target)
     ]).size;
   }, [daily, dailyBrief]);
+
+  const accuracyStats = useMemo(() => buildAccuracyStats(returns), [returns]);
 
   const marketToneClass =
     dailyBrief?.market_label === "情緒偏多" ? "positive" : dailyBrief?.market_label === "情緒偏空" ? "negative" : "";
@@ -655,6 +693,41 @@ export function Dashboard({ summary, news, daily, returns, backtests, marketPric
           <p className="panel-note" style={{ marginTop: "10px" }}>* 樣本不足：交易日數 &lt; 30 日或 Sharpe Ratio &gt; 5，年化指標為短期外推，不具統計意義。</p>
         </section>
       )}
+
+      {accuracyStats.total > 0 && (
+        <section className="validation-panel" aria-label="model accuracy">
+          <div className="section-heading">
+            <div>
+              <span>Model validation</span>
+              <h2>LLM 情緒預測驗證</h2>
+              <p className="panel-note">以情緒分數方向預測次日報酬方向的準確率（不構成投資建議）</p>
+            </div>
+          </div>
+          <div className="validation-grid">
+            <article className="validation-card">
+              <span>樣本數</span>
+              <strong>{accuracyStats.total.toLocaleString()}</strong>
+              <p>有效對齊筆數</p>
+            </article>
+            <article className={`validation-card ${accuracyStats.directional1d !== null && accuracyStats.directional1d >= 0.5 ? "positive-bg" : "neutral-bg"}`}>
+              <span>方向準確率</span>
+              <strong>{accuracyStats.directional1d !== null ? fmtPercent(accuracyStats.directional1d * 100) : "-"}</strong>
+              <p>情緒方向 vs 次日漲跌</p>
+            </article>
+            <article className="validation-card positive-bg">
+              <span>正向情緒平均報酬</span>
+              <strong>{accuracyStats.avgReturnPositive1d !== null ? fmtPercent(accuracyStats.avgReturnPositive1d * 100, 3) : "-"}</strong>
+              <p>次日</p>
+            </article>
+            <article className="validation-card negative-bg">
+              <span>負向情緒平均報酬</span>
+              <strong>{accuracyStats.avgReturnNegative1d !== null ? fmtPercent(accuracyStats.avgReturnNegative1d * 100, 3) : "-"}</strong>
+              <p>次日</p>
+            </article>
+          </div>
+        </section>
+      )}
+
       <section className="rag-panel">
         <div className="rag-header">
           <div className="rag-header-left">
