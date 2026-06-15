@@ -50,6 +50,7 @@ jobs:
           LIMIT=${{ github.event.inputs.limit || '80' }}
           python backend/scripts/analyze_news_with_llm.py \
             --limit "$LIMIT" \
+            --sleep 10 \
             --reanalyze-old-prompts
 
       - name: Fetch stock prices
